@@ -15,22 +15,22 @@
 
 int main(void)
 {
-	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
-	GPIO_InitTypeDef gpioA;
-	gpioA.Pin = GPIO_PIN_11 |
+	GPIO_InitTypeDef gpioB;
+	gpioB.Pin = GPIO_PIN_11 |
 				 GPIO_PIN_10 |
 				 GPIO_PIN_9  |
 				 GPIO_PIN_8  |
 				 GPIO_PIN_7;
-	gpioA.Mode = GPIO_MODE_OUTPUT_PP;
+	gpioB.Mode = GPIO_MODE_OUTPUT_PP;
 
-	HAL_GPIO_Init(GPIOA, &gpioA);
+	HAL_GPIO_Init(GPIOB, &gpioB);
 
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_11, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_7, GPIO_PIN_SET);
-	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+	//HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);
 
 	for(;;);
 }
