@@ -13,21 +13,10 @@
 
 int main(void)
 {
+	HAL_Init();
 	SysTick_Init();
 	led_init();
-	led_all_on();
-	channelMonitorInit();
+	channel_Monitor_Init();
 
-	// accumulate a 5 second delay using 50 microsecond delays
-	//for (int i=0; i<100000; i++)
-	//{
-	//	Delay_Micro(50);
-	//}
-
-	led_all_off();
-	while(1){
-		int test=HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5);
-	}
-
-	for(;;);
+	while(1){}
 }
