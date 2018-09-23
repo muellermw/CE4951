@@ -15,6 +15,8 @@ typedef enum{
 } state_enum ;
 
 extern void channelMonitorInit();
+extern void fallingEdgeTrigger();
+extern void risingEdgeTrigger();
 
 
 #endif /* CHANNEL_H_ */
