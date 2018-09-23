@@ -43,7 +43,7 @@ void EXTI9_5_IRQHandler(void)
  * intrupt handler for the timer. sets the new state of the monitor
  */
 void Timer_Handler(){
-	if(1==1){
+	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5)==1){
 		state=IDLE_STATE;
 	}else{
 		state=COLLISION_STATE;
