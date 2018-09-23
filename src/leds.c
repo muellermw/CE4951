@@ -1,5 +1,5 @@
 /*
- * File: led_functions.c
+ * File: leds.c
  * Purpose: provide basic functionality for the leds on the dev board
  */
 
@@ -84,7 +84,7 @@ void led_on(uint8_t lednum) {
 }
 
 /*
- * turn on a specific led
+ * turn off a specific led
  *
  * arguments:
  * 		lednum: the led number based on the board labels
