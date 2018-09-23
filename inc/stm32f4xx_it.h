@@ -43,8 +43,21 @@
 
 /* Includes ------------------------------------------------------------------*/
 /* Exported types ------------------------------------------------------------*/
+
+// Systick struct
+typedef struct {
+	uint32_t CSR;
+	uint32_t RELOAD;
+	uint32_t VALUE;
+	const uint32_t CALIBRATION;
+} SYSTICK_REGISTERS;
+
 /* Exported constants --------------------------------------------------------*/
 /* Exported macro ------------------------------------------------------------*/
+
+// base register for Systick
+#define SYSTICK_BASE 0xE000E010
+
 /* Exported functions ------------------------------------------------------- */
 
 void NMI_Handler(void);
@@ -56,6 +69,8 @@ void SVC_Handler(void);
 void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
+void SysTick_Init(void);
+void Delay_Micro(uint32_t time_ms);
 
 #ifdef __cplusplus
 }
