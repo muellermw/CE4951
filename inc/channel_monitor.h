@@ -14,9 +14,7 @@ typedef enum{
 	COLLISION_STATE
 } state_enum ;
 
-extern void channel_Monitor_Init();
-extern void fallingEdgeTrigger();
-extern void risingEdgeTrigger();
-
+void channel_Monitor_Init();
+state_enum getCurrentState();
 
 #endif /* CHANNEL_H_ */

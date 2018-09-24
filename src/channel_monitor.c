@@ -7,6 +7,11 @@
 #include "leds.h"
 #include "stdint.h"
 
+static void fallingEdgeTrigger();
+static void risingEdgeTrigger();
+static void disableMonitorClock();
+static void enableMonitorClock();
+
 static TIM_HandleTypeDef hTim2 =
 {
 	.Instance = TIM2
@@ -18,6 +23,7 @@ state_enum state;
  * initialize timers, set current state
  */
 void channel_Monitor_Init(){
+	state=IDLE_STATE;
 	//initialize Input pin for channel monitor
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 	GPIO_InitTypeDef gpioB;
@@ -32,16 +38,12 @@ void channel_Monitor_Init(){
 	hTim2.Init.Prescaler = 0;
 	hTim2.Init.CounterMode = TIM_COUNTERMODE_UP;
 	// set auto-reload register
-	hTim2.Init.Period = 14545; // 16,000,000/1100 = 1.1ms timer
+	hTim2.Init.Period = (16000000/1110); // 16,000,000/1110 = 1.11ms timer
+	// initialize timer 2 registers
 	HAL_TIM_Base_Init(&hTim2);
 	HAL_TIM_Base_Start(&hTim2);
-	// enable update interrupt
-	__HAL_TIM_ENABLE_IT(&hTim2, TIM_IT_UPDATE);
 	// enable interrupt for timer 2
 	HAL_NVIC_EnableIRQ(TIM2_IRQn);
-	led_all_off();//Turns off led due to state change
-	state=IDLE_STATE;
-	led_on(1);
 }
 
 /**
@@ -57,17 +59,7 @@ void TIM2_IRQHandler(void){
 		state=COLLISION_STATE;
 		led_on(7);
 	}
-	// clear interrupt flag
-	__HAL_TIM_CLEAR_FLAG(&hTim2, TIM_IT_UPDATE);
-	// disable the update interrupt for timer 2
-	__HAL_TIM_DISABLE_IT(&hTim2, TIM_IT_UPDATE);
-}
-
-/**
- * interrupt handler for the timer. sets the new state of the monitor
- */
-void Timer_Handler(){
-
+	disableMonitorClock();
 }
 
 /**
@@ -86,7 +78,7 @@ void EXTI9_5_IRQHandler(void)
 /**
  * called when a rising edge is found. Starts timer to run for time "x"
  */
-void risingEdgeTrigger(){
+static void risingEdgeTrigger(){
 	led_all_off();//Turns off led due to state change
 	state=BUSY_STATE;
 	led_on(4);
@@ -98,13 +90,26 @@ void risingEdgeTrigger(){
 /**
  * Called when a falling edge is found. Starts timer to run for time "x"
  */
-void fallingEdgeTrigger(){
+static void fallingEdgeTrigger(){
 	led_all_off();//Turns off led due to state change
 	state=BUSY_STATE;
 	led_on(4);
 	//set LED'S to indicate busy_state
 	//START TIMER FOR 1.11MS //see
 	//SysTick_Config(SystemCoreClock/dealy);
+}
+
+static void disableMonitorClock(){
+	__HAL_TIM_DISABLE_IT(&hTim2, TIM_IT_UPDATE);
+	__HAL_TIM_DISABLE(&hTim2);
+	__HAL_TIM_SET_COUNTER(&hTim2, 0);
+	__HAL_TIM_CLEAR_FLAG(&hTim2, TIM_IT_UPDATE);
+}
+
+static void enableMonitorClock(){
+	__HAL_TIM_ENABLE_IT(&hTim2, TIM_IT_UPDATE);
+	__HAL_TIM_SET_COUNTER(&hTim2, 0);
+	__HAL_TIM_ENABLE(&hTim2);
 }
 
 /**
