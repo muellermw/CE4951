@@ -44,6 +44,7 @@ void channel_Monitor_Init(){
 	HAL_TIM_Base_Start(&hTim2);
 	// enable interrupt for timer 2
 	HAL_NVIC_EnableIRQ(TIM2_IRQn);
+	disableMonitorClock();
 }
 
 /**
@@ -59,6 +60,7 @@ void TIM2_IRQHandler(void){
 		state=COLLISION_STATE;
 		led_on(7);
 	}
+
 	disableMonitorClock();
 }
 
@@ -67,36 +69,37 @@ void TIM2_IRQHandler(void){
  */
 void EXTI9_5_IRQHandler(void)
 {
+	// reset the timer
+	disableMonitorClock();
+
 	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5)){
 		risingEdgeTrigger();
 	}else{
 		fallingEdgeTrigger();
 	}
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_5);
+
+	enableMonitorClock();
 }
 
 /**
- * called when a rising edge is found. Starts timer to run for time "x"
+ * called when a rising edge is found
  */
 static void risingEdgeTrigger(){
 	led_all_off();//Turns off led due to state change
+	//set LEDs to indicate busy_state
 	state=BUSY_STATE;
 	led_on(4);
-	//set LED'S to indicate busy_state
-	//START TIMER FOR 1.11MS //see
-	//SysTick_Config(SystemCoreClock/dealy);
 }
 
 /**
- * Called when a falling edge is found. Starts timer to run for time "x"
+ * Called when a falling edge is found
  */
 static void fallingEdgeTrigger(){
 	led_all_off();//Turns off led due to state change
+	//set LEDs to indicate busy_state
 	state=BUSY_STATE;
 	led_on(4);
-	//set LED'S to indicate busy_state
-	//START TIMER FOR 1.11MS //see
-	//SysTick_Config(SystemCoreClock/dealy);
 }
 
 static void disableMonitorClock(){
