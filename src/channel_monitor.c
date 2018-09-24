@@ -13,13 +13,11 @@ static TIM_HandleTypeDef hTim2 =
 };
 
 state_enum state;
-//static uint32_t delay=1100;
 
 /**
  * initialize timers, set current state
  */
 void channel_Monitor_Init(){
-	state=IDLE_STATE;
 	//initialize Input pin for channel monitor
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 	GPIO_InitTypeDef gpioB;
@@ -41,16 +39,35 @@ void channel_Monitor_Init(){
 	__HAL_TIM_ENABLE_IT(&hTim2, TIM_IT_UPDATE);
 	// enable interrupt for timer 2
 	HAL_NVIC_EnableIRQ(TIM2_IRQn);
+	led_all_off();//Turns off led due to state change
+	state=IDLE_STATE;
+	led_on(1);
 }
 
 /**
  * interrupt handler for the timer. sets the new state of the monitor
  */
 void TIM2_IRQHandler(void){
+	led_all_off();//Turns off led due to state change
+	//Reads current input pin to determine state
+	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5)==1){
+		state=IDLE_STATE;
+		led_on(1);
+	}else if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5)==0){
+		state=COLLISION_STATE;
+		led_on(7);
+	}
 	// clear interrupt flag
 	__HAL_TIM_CLEAR_FLAG(&hTim2, TIM_IT_UPDATE);
 	// disable the update interrupt for timer 2
 	__HAL_TIM_DISABLE_IT(&hTim2, TIM_IT_UPDATE);
+}
+
+/**
+ * interrupt handler for the timer. sets the new state of the monitor
+ */
+void Timer_Handler(){
+
 }
 
 /**
@@ -70,8 +87,9 @@ void EXTI9_5_IRQHandler(void)
  * called when a rising edge is found. Starts timer to run for time "x"
  */
 void risingEdgeTrigger(){
+	led_all_off();//Turns off led due to state change
 	state=BUSY_STATE;
-	led_all_on();
+	led_on(4);
 	//set LED'S to indicate busy_state
 	//START TIMER FOR 1.11MS //see
 	//SysTick_Config(SystemCoreClock/dealy);
@@ -81,8 +99,9 @@ void risingEdgeTrigger(){
  * Called when a falling edge is found. Starts timer to run for time "x"
  */
 void fallingEdgeTrigger(){
+	led_all_off();//Turns off led due to state change
 	state=BUSY_STATE;
-	led_all_off();
+	led_on(4);
 	//set LED'S to indicate busy_state
 	//START TIMER FOR 1.11MS //see
 	//SysTick_Config(SystemCoreClock/dealy);
