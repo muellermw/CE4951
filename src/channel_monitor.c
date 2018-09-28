@@ -11,7 +11,7 @@ static void fallingEdgeTrigger();
 static void risingEdgeTrigger();
 static void disableMonitorClock();
 static void enableMonitorClock();
-
+static const uint16_t DELAY_TIME = 910;//Got value after testing with scope to get us a 1.11ms delay
 static TIM_HandleTypeDef hTim2 =
 {
 	.Instance = TIM2
@@ -38,7 +38,7 @@ void channel_Monitor_Init(){
 	hTim2.Init.Prescaler = 0;
 	hTim2.Init.CounterMode = TIM_COUNTERMODE_UP;
 	// set auto-reload register
-	hTim2.Init.Period = (16000000/1110); // 16,000,000/1110 = 1.11ms timer
+	hTim2.Init.Period = (16000000/DELAY_TIME); // 16,000,000/910 = 1.11ms timer
 	// initialize timer 2 registers
 	HAL_TIM_Base_Init(&hTim2);
 	HAL_TIM_Base_Start(&hTim2);
