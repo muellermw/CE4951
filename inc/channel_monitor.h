@@ -14,6 +14,12 @@ typedef enum{
 	COLLISION_STATE
 } state_enum ;
 
+typedef enum{
+	RISING_EDGE,
+	FALLING_EDGE
+} edge_enum;
+
+
 void channel_Monitor_Init();
 state_enum getCurrentState();
 
