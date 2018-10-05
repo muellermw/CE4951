@@ -20,6 +20,7 @@ int edgetype;
 
 state_enum state;
 edge_enum edge;
+
 /**
  * initialize timers, set current state
  */
@@ -60,20 +61,16 @@ void TIM2_IRQHandler(void){
 	HAL_NVIC_DisableIRQ(EXTI9_5_IRQn);
 
 	led_all_off();//Turns off led due to state change
-	//Reads current input pin to determine state
 
-	//int pin=HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5);
-
-
-	if(edge==RISING_EDGE){
+	if(edge==RISING_EDGE) {
 		state=IDLE_STATE;
 		led_on(1);
-	}else{//(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5)==0){
+	} else {
 		state=COLLISION_STATE;
 		led_on(7);
 	}
-	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
+	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 	disableMonitorClock();
 }
 

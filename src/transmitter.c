@@ -4,6 +4,7 @@
 #include "stdint.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
+#include "transmitter.h"
 #include <stdio.h>
 #include <stdbool.h>
 
@@ -85,7 +86,7 @@ void stopTransmission(){
 	//for this lab we just retransmit
 
 	//wait for random amout of time
-	startTransmission(original);
+	startTransmission();
 }
 
 
