@@ -86,12 +86,12 @@ void stopTransmission(){
 	//for this lab we just retransmit
 
 	//wait for random amout of time
-	startTransmission();
+//	startTransmission(char *array, int ammountOfChars);
 }
 
 
 //assume output is in binary
-void startTransmission(){
+void startTransmission(char *array, int ammountOfChars){
 
 	transmitter_init();
 
