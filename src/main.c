@@ -12,6 +12,7 @@
 #include "channel_monitor.h"
 #include "uart_driver.h"
 #include <stdlib.h>
+#include "transmitter.h"
 
 int main(void)
 {
@@ -19,11 +20,20 @@ int main(void)
 	SysTick_Init();
 	led_init();
 	channel_Monitor_Init();
-	usart2_init(38400);
-	char test[10];
-	int number;
-	fgets(test, 10, stdin);
-	number = atoi(test);
-	printf("captured number: %d", number);
-	while(1){}
+
+	char arry[2]={'h','i'};
+
+	int num=2;
+	startTransmission(arry,num);
+
+
+
+
+	//usart2_init(38400);
+	//char test[10];
+	//int number;
+	//fgets(test, 10, stdin);
+	//number = atoi(test);
+//	printf("captured number: %d", number);
+//	while(1){}
 }

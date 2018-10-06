@@ -7,6 +7,9 @@
 #include "transmitter.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
 static const uint16_t DELAY_TIME = 2000;//Got value after testing with scope to get us a 1.11ms delay
 static TIM_HandleTypeDef hTim4 =
@@ -19,7 +22,7 @@ static TIM_OC_InitTypeDef OCTIM;
 
 int original;
 int *manchesterArray;//malloc(size);
-int index;
+int indexOfManchester;
 bool stopCalled=false;
 
 
@@ -68,11 +71,11 @@ void TIM4_IRQHandler(void){
 
 	//If the current state collison stop all transmission
 
-	if(manchesterArray[index]==0){
-		index++;
+	if(manchesterArray[indexOfManchester]==0){
+		indexOfManchester++;
 		transmit_LOW();
-	}else if(manchesterArray[index]==1){
-		index++;
+	}else if(manchesterArray[indexOfManchester]==1){
+		indexOfManchester++;
 		transmit_HIGH();
 	}
 }
@@ -92,22 +95,57 @@ void stopTransmission(){
 
 //assume output is in binary
 void startTransmission(char *array, int ammountOfChars){
-
 	transmitter_init();
+	int inputIndex=0;
 
+	//Conversts from characters to Askii
+	int *arrayAskii;
+	arrayAskii=malloc(sizeof(int)*ammountOfChars);
+	memset(arrayAskii,0,sizeof(int)*ammountOfChars);
+	for(int i=0;i<ammountOfChars;i++){
+		arrayAskii[i]=5;
+	}
+	//encdoign siez= (ammoutn of chars)*(nubmer of bits per char)*2 for manchester up down encoding
+	manchesterArray=malloc(ammountOfChars*8*2);
+
+	//Cnverts from Askii to binary
+	int i =0;
+	int manchesterBits=0;
+	while( i<ammountOfChars){
+		for(int f=8;f!=0;f--){
+			int bit=(( unsigned char )arrayAskii[i] >> f & 1);
+
+			if(bit==0){
+				manchesterArray[manchesterBits]=1;
+				manchesterArray[manchesterBits+1]=0;
+			}
+			if(bit==1){
+				manchesterArray[manchesterBits]=0;
+				manchesterArray[manchesterBits+1]=1;
+			}
+			manchesterBits=manchesterBits+2;
+		}
+		i++;
+	}
+
+
+
+
+
+	//if(arry[inputIndex])
 	//Size of the buffer
 	//*manchesterArray=malloc(sizeof());
 
 	//convert to binary and store in manchesterArray
 
-	index=0;
+	indexOfManchester=0;
 
-	if(manchesterArray[index]==0){
-		index++;
+	if(manchesterArray[indexOfManchester]==0){
+		indexOfManchester++;
 		transmit_LOW();
 	}
-	if(manchesterArray[index]==1){
-		index++;
+	if(manchesterArray[indexOfManchester]==1){
+		indexOfManchester++;
 		transmit_HIGH();
 	}
 }
