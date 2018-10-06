@@ -98,48 +98,41 @@ void startTransmission(char *array, int ammountOfChars){
 	transmitter_init();
 	int inputIndex=0;
 
-	//Conversts from characters to Askii
-	int *arrayAskii;
-	arrayAskii=malloc(sizeof(int)*ammountOfChars);
-	memset(arrayAskii,0,sizeof(int)*ammountOfChars);
-	for(int i=0;i<ammountOfChars;i++){
-		arrayAskii[i]=5;
-	}
-	//encdoign siez= (ammoutn of chars)*(nubmer of bits per char)*2 for manchester up down encoding
-	manchesterArray=malloc(ammountOfChars*8*2);
+	//encoding size= (ammoutn of chars)*(nubmer of bits per char)*2 for manchester up down encoding
+	manchesterArray=malloc(sizeof(int)*ammountOfChars*8*2);
+	memset(manchesterArray,0,sizeof(int)*ammountOfChars*8*2);
 
 	//Cnverts from Askii to binary
 	int i =0;
+	int fillUpArray[8];
 	int manchesterBits=0;
 	while( i<ammountOfChars){
-		for(int f=8;f!=0;f--){
-			int bit=(( unsigned char )arrayAskii[i] >> f & 1);
-
-			if(bit==0){
-				manchesterArray[manchesterBits]=1;
-				manchesterArray[manchesterBits+1]=0;
-			}
-			if(bit==1){
-				manchesterArray[manchesterBits]=0;
-				manchesterArray[manchesterBits+1]=1;
-			}
-			manchesterBits=manchesterBits+2;
+		for(int f=0;f<8;f++){
+			int bit=((array[i] >> f) & 1);
+			fillUpArray[f]=bit;
 		}
-		i++;
+		//Flips the fillUpArray back into correct binary order
+		//Stores into manchesterArray with clk and data
+		for(int j=7;j>=0;j--){
+			if(fillUpArray[j]==0){
+				manchesterArray[manchesterBits]=1;//clock
+				manchesterArray[manchesterBits+1]=0;//data
+			}
+			if(fillUpArray[j]==1){
+				manchesterArray[manchesterBits]=0;//clock
+				manchesterArray[manchesterBits+1]=1;//data
+			}
+
+		//incroments manchester bits up 2 (1 for clk 1 for data)
+		manchesterBits=manchesterBits+2;
+		//clears the fillUpArray
+		memset(fillUpArray,0,8);
+		}
+		i++;//goes to next character
 	}
-
-
-
-
-
-	//if(arry[inputIndex])
-	//Size of the buffer
-	//*manchesterArray=malloc(sizeof());
-
-	//convert to binary and store in manchesterArray
-
 	indexOfManchester=0;
 
+	int test=manchesterArray[indexOfManchester];//NOT RETUNING CORRECT VALUE
 	if(manchesterArray[indexOfManchester]==0){
 		indexOfManchester++;
 		transmit_LOW();
