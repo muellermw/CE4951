@@ -20,20 +20,24 @@ int main(void)
 	SysTick_Init();
 	led_init();
 	channel_Monitor_Init();
-
+	usart2_init(38400);
+	transmitter_init();
+	char inputBuf[255];
+	printf("Enter characters to transmit here:\n");
+	//fgets(inputBuf, 255, stdin);
 	char arry[2]={'h','i'};
 
 	int num=2;
 	startTransmission(arry,num);
 
-
-
-
-	//usart2_init(38400);
-	//char test[10];
-	//int number;
-	//fgets(test, 10, stdin);
-	//number = atoi(test);
-//	printf("captured number: %d", number);
-//	while(1){}
+	while(1)
+	{
+//		printf("Enter characters to transmit here:\n");
+//		fgets(inputBuf, 255, stdin);
+//		// check if the user has entered more than just a newline character
+//		if (strlen(inputBuf) > 1)
+//		{
+//			startTransmission(inputBuf, strlen(inputBuf));
+//		}
+	}
 }

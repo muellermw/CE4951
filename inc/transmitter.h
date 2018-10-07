@@ -7,4 +7,3 @@ void stopTransmission();
 
 #endif /* CHANNEL_H_ */
 
-

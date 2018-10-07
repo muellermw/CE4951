@@ -1,4 +1,9 @@
-
+/**
+  ******************************************************************************
+  * @file    transmitter.c
+  * @author  Marcus Mueller, Paul Scarbrough
+  ******************************************************************************
+*/
 
 #include "leds.h"
 #include "stdint.h"
@@ -11,14 +16,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const uint16_t DELAY_TIME = 2000;//Got value after testing with scope to get us a 1.11ms delay
+static const uint16_t DELAY_TIME = 2000;
+
 static TIM_HandleTypeDef hTim4 =
 {
 	.Instance = TIM4
 };
 
 
-static TIM_OC_InitTypeDef OCTIM;
+static TIM_OC_InitTypeDef hOCTim4;
 
 int original;
 int *manchesterArray;//malloc(size);
@@ -28,56 +34,58 @@ bool stopCalled=false;
 
 
 void transmitter_init(){
+	/*
+	 * Enable the timer and its output compare.
+	 * This timer is a free running counter that
+	 * generates an timer interrupt every 0.5 milliseconds
+	 */
 	__HAL_RCC_TIM4_CLK_ENABLE();
 	hTim4.Instance = TIM4;
 	hTim4.Init.Prescaler = 0;
 	hTim4.Init.CounterMode = TIM_COUNTERMODE_UP;
 	// set auto-reload register
-	hTim4.Init.Period = (16000000/DELAY_TIME); // 16,000,000/910 = 1.11ms timer
+	hTim4.Init.Period = (16000000/DELAY_TIME); // 16,000,000/2000 = 0.5ms timer
 	// initialize timer 2 registers
 	HAL_TIM_Base_Init(&hTim4);
 	HAL_TIM_Base_Start(&hTim4);
-
-
+	// initialize output compare
 	hTim4.Channel = HAL_TIM_ACTIVE_CHANNEL_1;
-
 	HAL_TIM_OC_Init(&hTim4);
-
-//	OCTIM.OCMode=TIM_OCMODE_TOGGLE;
-//	OCTIM.OCMode=
+	hOCTim4.OCMode=TIM_OCMODE_ACTIVE;
 	HAL_NVIC_EnableIRQ(TIM4_IRQn);
-	HAL_TIM_OC_ConfigChannel(&hTim4, &OCTIM, TIM_CHANNEL_4);
+	HAL_TIM_OC_ConfigChannel(&hTim4, &hOCTim4, TIM_CHANNEL_4);
+	__HAL_TIM_SET_COMPARE(&hTim4, TIM_CHANNEL_1, (16000000/DELAY_TIME));
+	// enable interrupt for timer 4
+	HAL_TIM_OC_Start_IT(&hTim4, TIM_CHANNEL_1);
+	HAL_NVIC_EnableIRQ(TIM4_IRQn);
 
-	// enable interrupt for timer 2
-	//HAL_NVIC_SetPriority(TIM2_IRQn,0,0);
-	//HAL_NVIC_EnableIRQ(TIM4_IRQn);
-}
-
-//Forces a 1 on the output
-void transmit_HIGH(){
-	OCTIM.OCMode=TIM_OCMODE_FORCED_ACTIVE;
-	HAL_TIM_OC_ConfigChannel(&hTim4, &OCTIM, TIM_CHANNEL_4);
-	HAL_TIM_OC_Start(&hTim4, TIM_CHANNEL_4);
-}
-
-//Forices a 0 on the ouput
-void transmit_LOW(){
-	OCTIM.OCMode=TIM_OCMODE_FORCED_INACTIVE;
-	HAL_TIM_OC_ConfigChannel(&hTim4, &OCTIM, TIM_CHANNEL_4);
-	HAL_TIM_OC_Start(&hTim4, TIM_CHANNEL_4);
+	/*
+	 * Enable output pin
+	 */
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	GPIO_InitTypeDef D13;
+	D13.Pin = GPIO_PIN_5;
+	D13.Mode = GPIO_MODE_OUTPUT_PP;
+	D13.Speed=GPIO_SPEED_FREQ_VERY_HIGH;
+	HAL_GPIO_Init(GPIOA, &D13);
 }
 
 void TIM4_IRQHandler(void){
-
+	// clear the pending OC interrupt
+	__HAL_TIM_CLEAR_IT(&hTim4, TIM_IT_CC1);
+	// USE THESE COMMANDS to change the output of pin PA5 (D13)
+	// This is output 3.3V logic which is just what we need
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 	//If the current state collison stop all transmission
 
-	if(manchesterArray[indexOfManchester]==0){
-		indexOfManchester++;
-		transmit_LOW();
-	}else if(manchesterArray[indexOfManchester]==1){
-		indexOfManchester++;
-		transmit_HIGH();
-	}
+//	if(manchesterArray[indexOfManchester]==0){
+//		indexOfManchester++;
+//		transmit_LOW();
+//	}else if(manchesterArray[indexOfManchester]==1){
+//		indexOfManchester++;
+//		transmit_HIGH();
+//	}
 }
 
 //called when we have a
@@ -98,11 +106,11 @@ void startTransmission(char *array, int ammountOfChars){
 	transmitter_init();
 	int inputIndex=0;
 
-	//encoding size= (ammoutn of chars)*(nubmer of bits per char)*2 for manchester up down encoding
+	//encoding size= (amount of chars)*(number of bits per char)*2 for manchester up down encoding
 	manchesterArray=malloc(sizeof(int)*ammountOfChars*8*2);
 	memset(manchesterArray,0,sizeof(int)*ammountOfChars*8*2);
 
-	//Cnverts from Askii to binary
+	//Converts from Ascii to binary
 	int i =0;
 	int fillUpArray[8];
 	int manchesterBits=0;
@@ -135,10 +143,10 @@ void startTransmission(char *array, int ammountOfChars){
 	int test=manchesterArray[indexOfManchester];//NOT RETUNING CORRECT VALUE
 	if(manchesterArray[indexOfManchester]==0){
 		indexOfManchester++;
-		transmit_LOW();
+		//transmit_LOW();
 	}
 	if(manchesterArray[indexOfManchester]==1){
 		indexOfManchester++;
-		transmit_HIGH();
+		//transmit_HIGH();
 	}
 }
