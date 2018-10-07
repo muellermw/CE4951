@@ -71,25 +71,32 @@ void transmitter_init(){
 void TIM4_IRQHandler(void){
 	// clear the pending OC interrupt
 	__HAL_TIM_CLEAR_IT(&hTim4, TIM_IT_CC1);
-	state_enum monitorState = getCurrentMonitorState();
-	if (readyToTransmit==true && monitorState==IDLE_STATE)
+	// check if index is equal to the size of the array,
+	// this means that we are done transmitting the message
+	// the index should never get larger than the array size
+	if (indexOfManchester >= manchesterSize)
 	{
-		// Changes the output of pin PA5 (D13)
-		// This outputs 3.3V logic which is just what we need
-		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, manchesterArray[indexOfManchester]);
-		indexOfManchester++;
-	}
-
-	if (indexOfManchester == manchesterSize)
-	{
-		readyToTransmit = false;
 		// disable interrupt for timer 4
 		HAL_TIM_OC_Stop_IT(&hTim4, TIM_CHANNEL_1);
-	}
-
-	if (monitorState == COLLISION_STATE)
-	{
+		readyToTransmit = false;
 		stopTransmission();
+	}
+	else
+	{
+		state_enum monitorState = getCurrentMonitorState();
+
+		if (readyToTransmit==true && monitorState==IDLE_STATE)
+		{
+			// Changes the output of pin PA5 (D13)
+			// This outputs 3.3V logic which is just what we need
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, manchesterArray[indexOfManchester]);
+			indexOfManchester++;
+		}
+
+		if (monitorState == COLLISION_STATE)
+		{
+			stopTransmission();
+		}
 	}
 }
 

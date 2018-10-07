@@ -22,7 +22,7 @@ int main(void)
 	channel_Monitor_Init();
 	usart2_init(38400);
 	transmitter_init();
-	char inputBuf[TRANSMISSION_SIZE_MAX];
+	//char inputBuf[TRANSMISSION_SIZE_MAX];
 	printf("Enter characters to transmit here:\n");
 	//fgets(inputBuf, TRANSMISSION_SIZE_MAX, stdin);
 	char arry[2]={'*','i'};
