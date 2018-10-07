@@ -13,6 +13,7 @@
 #include "uart_driver.h"
 #include "transmitter.h"
 #include <stdlib.h>
+#include <string.h>
 
 int main(void)
 {
@@ -22,23 +23,17 @@ int main(void)
 	channel_Monitor_Init();
 	usart2_init(38400);
 	transmitter_init();
-	//char inputBuf[TRANSMISSION_SIZE_MAX];
-	printf("Enter characters to transmit here:\n");
-	//fgets(inputBuf, TRANSMISSION_SIZE_MAX, stdin);
-	char arry[2]={'*','i'};
-
-	int num=2;
-	startTransmission(arry,num);
+	char inputBuf[TRANSMISSION_SIZE_MAX];
 
 	while(1)
 	{
-//		printf("Enter characters to transmit here:\n");
-//		fgets(inputBuf, TRANSMISSION_SIZE_MAX, stdin);
-//		// check if the user has entered more than just a newline character
-//		if (strlen(inputBuf) > 1)
-//		{
-//			// string length - 1 so the newline does not get transmitted (for now)
-//			startTransmission(inputBuf, strlen(inputBuf)-1);
-//		}
+		printf("Enter characters to transmit here:\n");
+		fgets(inputBuf, TRANSMISSION_SIZE_MAX, stdin);
+		// check if the user has entered more than just a newline character
+		if (strlen(inputBuf) > 1)
+		{
+			// string length - 1 so the newline does not get transmitted (for now)
+			startTransmission(inputBuf, strlen(inputBuf)-1);
+		}
 	}
 }

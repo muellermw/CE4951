@@ -134,7 +134,7 @@ void startTransmission(char *array, int amountOfChars){
 		// implement override test characters to make unit testing easier
 		if (referenceChar == '*')
 		{
-			referenceChar = (char)0x55;
+			referenceChar = (char)0xAA;
 		}
 
 		// increment the character index
