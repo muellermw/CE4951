@@ -5,27 +5,26 @@
 
 #include "channel_monitor.h"
 #include "leds.h"
-#include "stdint.h"
+#include <stdint.h>
 
 static void fallingEdgeTrigger();
 static void risingEdgeTrigger();
 static void disableMonitorClock();
 static void enableMonitorClock();
+
 static const uint16_t DELAY_TIME = 900;//Got value after testing with scope to get us a 1.11ms delay
 static TIM_HandleTypeDef hTim2 =
 {
 	.Instance = TIM2
 };
-int edgetype;
 
-state_enum state;
-edge_enum edge;
+static state_enum monitor_state;
+static edge_enum edge;
 
 /**
  * initialize timers, set current state
  */
 void channel_Monitor_Init(){
-	state=IDLE_STATE;
 	//initialize Input pin for channel monitor
 	__HAL_RCC_GPIOB_CLK_ENABLE();
 	GPIO_InitTypeDef gpioB;
@@ -51,6 +50,17 @@ void channel_Monitor_Init(){
 	HAL_NVIC_SetPriority(TIM2_IRQn,0,0);
 	HAL_NVIC_EnableIRQ(TIM2_IRQn);
 	disableMonitorClock();
+
+	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5))
+	{
+		monitor_state=IDLE_STATE;
+		led_on(0);
+	}
+	else
+	{
+		monitor_state=COLLISION_STATE;
+		led_on(9);
+	}
 }
 
 /**
@@ -63,11 +73,11 @@ void TIM2_IRQHandler(void){
 	led_all_off();//Turns off led due to state change
 
 	if(edge==RISING_EDGE) {
-		state=IDLE_STATE;
-		led_on(1);
+		monitor_state=IDLE_STATE;
+		led_on(0);
 	} else {
-		state=COLLISION_STATE;
-		led_on(7);
+		monitor_state=COLLISION_STATE;
+		led_on(9);
 	}
 
 	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
@@ -99,7 +109,7 @@ static void risingEdgeTrigger(){
 	led_all_off();//Turns off led due to state change
 	//set LEDs to indicate busy_state
 	edge=RISING_EDGE;
-	state=BUSY_STATE;
+	monitor_state=BUSY_STATE;
 	led_on(4);
 }
 
@@ -110,7 +120,7 @@ static void fallingEdgeTrigger(){
 	led_all_off();//Turns off led due to state change
 	//set LEDs to indicate busy_state
 	edge=FALLING_EDGE;
-	state=BUSY_STATE;
+	monitor_state=BUSY_STATE;
 	led_on(4);
 }
 
@@ -131,7 +141,6 @@ static void enableMonitorClock(){
 /**
  * Return the current state of the monitor
  */
-state_enum getCurrentState(){
-	return state;
+state_enum getCurrentMonitorState(){
+	return monitor_state;
 }
-

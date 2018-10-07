@@ -5,16 +5,11 @@
   ******************************************************************************
 */
 
-#include "leds.h"
-#include "stdint.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
+#include "channel_monitor.h"
 #include "transmitter.h"
-#include <stdio.h>
 #include <stdbool.h>
-#include <limits.h>
-#include <stdlib.h>
-#include <string.h>
 
 static const uint16_t DELAY_TIME = 2000;
 
@@ -23,14 +18,12 @@ static TIM_HandleTypeDef hTim4 =
 	.Instance = TIM4
 };
 
-
 static TIM_OC_InitTypeDef hOCTim4;
 
-int original;
-int *manchesterArray;//malloc(size);
-int indexOfManchester;
-bool stopCalled=false;
-
+static uint8_t manchesterArray[TRANSMISSION_SIZE_MAX * 8 * 2];
+static int indexOfManchester = 0;
+static int manchesterSize = 0;
+static bool readyToTransmit = false;
 
 
 void transmitter_init(){
@@ -55,8 +48,8 @@ void transmitter_init(){
 	HAL_NVIC_EnableIRQ(TIM4_IRQn);
 	HAL_TIM_OC_ConfigChannel(&hTim4, &hOCTim4, TIM_CHANNEL_4);
 	__HAL_TIM_SET_COMPARE(&hTim4, TIM_CHANNEL_1, (16000000/DELAY_TIME));
-	// enable interrupt for timer 4
-	HAL_TIM_OC_Start_IT(&hTim4, TIM_CHANNEL_1);
+	// disable interrupt for timer 4
+	HAL_TIM_OC_Stop_IT(&hTim4, TIM_CHANNEL_1);
 	HAL_NVIC_EnableIRQ(TIM4_IRQn);
 
 	/*
@@ -68,85 +61,89 @@ void transmitter_init(){
 	D13.Mode = GPIO_MODE_OUTPUT_PP;
 	D13.Speed=GPIO_SPEED_FREQ_VERY_HIGH;
 	HAL_GPIO_Init(GPIOA, &D13);
+	// initialize pin output to high
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 }
 
+/*
+ * Timer 4 interrupt handles the sending of Manchester binary data
+ */
 void TIM4_IRQHandler(void){
 	// clear the pending OC interrupt
 	__HAL_TIM_CLEAR_IT(&hTim4, TIM_IT_CC1);
-	// USE THESE COMMANDS to change the output of pin PA5 (D13)
-	// This is output 3.3V logic which is just what we need
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-	//If the current state collison stop all transmission
+	state_enum monitorState = getCurrentMonitorState();
+	if (readyToTransmit==true && monitorState==IDLE_STATE)
+	{
+		// Changes the output of pin PA5 (D13)
+		// This outputs 3.3V logic which is just what we need
+		HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, manchesterArray[indexOfManchester]);
+		indexOfManchester++;
+	}
 
-//	if(manchesterArray[indexOfManchester]==0){
-//		indexOfManchester++;
-//		transmit_LOW();
-//	}else if(manchesterArray[indexOfManchester]==1){
-//		indexOfManchester++;
-//		transmit_HIGH();
-//	}
+	if (indexOfManchester == manchesterSize)
+	{
+		readyToTransmit = false;
+		// disable interrupt for timer 4
+		HAL_TIM_OC_Stop_IT(&hTim4, TIM_CHANNEL_1);
+	}
+
+	if (monitorState == COLLISION_STATE)
+	{
+		stopTransmission();
+	}
 }
 
-//called when we have a
+//called when we have a collision on the channel monitor
 void stopTransmission(){
-	HAL_TIM_OC_Stop(&hTim4, TIM_CHANNEL_4);
-	stopCalled=true;
-	//Delay for set amout fo time
-	//index now hoolds how much we have sent
-	//for this lab we just retransmit
-
-	//wait for random amout of time
-//	startTransmission(char *array, int ammountOfChars);
+	// set pin back to idle high
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+	// reset position to resend all buffer data
+	indexOfManchester = 0;
 }
 
 
-//assume output is in binary
-void startTransmission(char *array, int ammountOfChars){
-	transmitter_init();
-	int inputIndex=0;
+/*
+ * This method will transform a string a binary encoded Manchester array
+ * and let the transmitter know that it is ready to start the transmission
+ * after the Manchester encoding is done
+ */
+void startTransmission(char *array, int amountOfChars){
+	//Converts from ASCII to binary
 
-	//encoding size= (amount of chars)*(number of bits per char)*2 for manchester up down encoding
-	manchesterArray=malloc(sizeof(int)*ammountOfChars*8*2);
-	memset(manchesterArray,0,sizeof(int)*ammountOfChars*8*2);
+	// this would cause a memory overflow, cannot continue
+	if (amountOfChars > TRANSMISSION_SIZE_MAX)
+	{
+		return;
+	}
 
-	//Converts from Ascii to binary
-	int i =0;
-	int fillUpArray[8];
-	int manchesterBits=0;
-	while( i<ammountOfChars){
-		for(int f=0;f<8;f++){
-			int bit=((array[i] >> f) & 1);
-			fillUpArray[f]=bit;
+	manchesterSize = amountOfChars * 8 * 2;
+	int charIndex = 0;
+	int manchesterIndex = 0;
+
+	// loop through the entire string to fill the manchester array
+	while (manchesterIndex < manchesterSize)
+	{
+		char referenceChar = array[charIndex];
+		// implement override test characters to make unit testing easier
+		if (referenceChar == '*')
+		{
+			referenceChar = (char)0x55;
 		}
-		//Flips the fillUpArray back into correct binary order
-		//Stores into manchesterArray with clk and data
-		for(int j=7;j>=0;j--){
-			if(fillUpArray[j]==0){
-				manchesterArray[manchesterBits]=1;//clock
-				manchesterArray[manchesterBits+1]=0;//data
-			}
-			if(fillUpArray[j]==1){
-				manchesterArray[manchesterBits]=0;//clock
-				manchesterArray[manchesterBits+1]=1;//data
-			}
 
-		//incroments manchester bits up 2 (1 for clk 1 for data)
-		manchesterBits=manchesterBits+2;
-		//clears the fillUpArray
-		memset(fillUpArray,0,8);
+		// increment the character index
+		charIndex++;
+
+		for (int i=7; i>=0; i--)
+		{
+			// go through each bit of the character and assign
+			// not the bit, and the bit to the manchester array
+			manchesterArray[manchesterIndex] = !((referenceChar>>i) & 0b1);
+			manchesterIndex++;
+			manchesterArray[manchesterIndex] = ((referenceChar>>i) & 0b1);
+			manchesterIndex++;
 		}
-		i++;//goes to next character
 	}
-	indexOfManchester=0;
-
-	int test=manchesterArray[indexOfManchester];//NOT RETUNING CORRECT VALUE
-	if(manchesterArray[indexOfManchester]==0){
-		indexOfManchester++;
-		//transmit_LOW();
-	}
-	if(manchesterArray[indexOfManchester]==1){
-		indexOfManchester++;
-		//transmit_HIGH();
-	}
+	// enable interrupt for timer 4
+	HAL_TIM_OC_Start_IT(&hTim4, TIM_CHANNEL_1);
+	readyToTransmit = true;
 }

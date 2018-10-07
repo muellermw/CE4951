@@ -7,6 +7,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
 #include <stdio.h>
+#include <stdbool.h>
 
 typedef enum{
 	IDLE_STATE,
@@ -19,8 +20,7 @@ typedef enum{
 	FALLING_EDGE
 } edge_enum;
 
-
 void channel_Monitor_Init();
-state_enum getCurrentState();
+state_enum getCurrentMonitorState();
 
 #endif /* CHANNEL_H_ */
