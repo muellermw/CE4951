@@ -28,7 +28,7 @@ int main(void)
 	while(1)
 	{
 		printf("Enter characters to transmit here:\n");
-		fgets(inputBuf, TRANSMISSION_SIZE_MAX, stdin);
+		_gets(inputBuf, TRANSMISSION_SIZE_MAX);
 		// check if the user has entered more than just a newline character
 		if (strlen(inputBuf) > 1)
 		{

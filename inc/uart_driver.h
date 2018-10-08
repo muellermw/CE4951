@@ -39,6 +39,7 @@
 // Function prototypes
 extern void usart2_init(uint32_t baud);
 extern char usart2_getch();
+extern void _gets(char* buffer, int buffSize);
 extern void usart2_putch(char c);
 // interrupt request routine
 void USART2_IRQHandler(void) __attribute__ ((isr));

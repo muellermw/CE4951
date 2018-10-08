@@ -23,13 +23,56 @@ char usart2_getch(){
 	if (read_char == '\r'){  // If character is CR
 		read_char = '\n';   // Return LF. fgets is terminated by LF
 		usart2_putch(read_char); // dump to the transmit buffer for echoing
-	} // else if (read_char == '\b') {
+	} else if (read_char == '\b') {
 		// if there is a backspace (ANSI), send characters to make the console behave correctly
 		// clear the character space with a 'space', then back up to that space
-//		usart2_putch(' ');
-//		usart2_putch('\b');
-//	}
+		usart2_putch(' ');
+		usart2_putch('\b');
+	}
 	return read_char;
+}
+
+/*
+ * This is an alternate get string method that implements backspace correctly.
+ * For some reason, fgets does not like the backspace implementation anymore
+ * and catastrophically fails. This will help when commands get more complicated
+ *
+ * inputs:
+ * 			buffer   - pointer to the character buffer
+ * 			buffSize - size of the buffer
+ */
+void _gets(char* buffer, int buffSize)
+{
+	int size = 0;
+	char input = '\0';
+
+	while (input != '\n')
+	{
+		input = usart2_getch();
+		// make sure the buffer has enough space for another character
+		if (size < buffSize-1)
+		{
+			// check for backspaces
+			if(input=='\b' || input=='\177')
+			{
+				// only backspace if there is data to clear
+				if (size > 0)
+				{
+					// move back a character
+					size--;
+					// delete the last character
+					buffer[size] = '\0';
+				}
+			}
+			else
+			{
+				buffer[size] = input;
+				size++;
+			}
+		}
+	}
+	// append the ending null character
+	buffer[size] = '\0';
 }
 
 /*
