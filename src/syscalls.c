@@ -105,17 +105,18 @@ int _read (int file, char *ptr, int len)
 	{
 		*ptr = usart2_getch();
 		// see if there was a backspace ('\b' for ansi, '\177' for ascii in Realterm)
-		if(*ptr == '\b' || *ptr == '\177') {
-			*ptr = '\0';
+//		if(*ptr == '\b' || *ptr == '\177') {
+//			*ptr = '\0';
 			// test to see if there is data to remove
-			if (byteCnt != 0) {
-				// get rid of previous character
-				ptr--;
-				*ptr = '\0';
-				// decrement the byte count as we got rid of a character
-				byteCnt--;
-			}
-		} else if(*ptr == '\n') {
+//			if (byteCnt != 0) {
+//				// get rid of previous character
+//				ptr--;
+//				*ptr = '\0';
+//				// decrement the byte count as we got rid of a character
+//				byteCnt--;
+//			}
+//		} else
+		if(*ptr == '\n') {
 			byteCnt++;
 			ptr++;
 			break;

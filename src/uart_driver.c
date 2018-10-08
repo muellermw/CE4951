@@ -23,12 +23,12 @@ char usart2_getch(){
 	if (read_char == '\r'){  // If character is CR
 		read_char = '\n';   // Return LF. fgets is terminated by LF
 		usart2_putch(read_char); // dump to the transmit buffer for echoing
-	} else if (read_char == '\b') {
+	} // else if (read_char == '\b') {
 		// if there is a backspace (ANSI), send characters to make the console behave correctly
 		// clear the character space with a 'space', then back up to that space
-		usart2_putch(' ');
-		usart2_putch('\b');
-	}
+//		usart2_putch(' ');
+//		usart2_putch('\b');
+//	}
 	return read_char;
 }
 
