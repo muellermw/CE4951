@@ -84,8 +84,11 @@ void TIM4_IRQHandler(void){
 	else
 	{
 		state_enum monitorState = getCurrentMonitorState();
-
-		if (readyToTransmit==true && monitorState==IDLE_STATE)
+		// make sure readyToTransmit is true,
+		// make sure that the beginning of the transmission is in the IDLE_STATE,
+		// if the transmission has started, make sure the line is not in COLLISION_STATE
+		if ( (readyToTransmit==true) && ( (monitorState==IDLE_STATE && indexOfManchester==0) ||
+				(monitorState!=COLLISION_STATE && indexOfManchester>0) ) )
 		{
 			// Changes the output of pin PA5 (D13)
 			// This outputs 3.3V logic which is just what we need
@@ -132,7 +135,15 @@ void startTransmission(char *array, int amountOfChars){
 	{
 		char referenceChar = array[charIndex];
 		// implement override test characters to make unit testing easier
-		if (referenceChar == '*')
+		if (referenceChar == '^')
+		{
+			referenceChar = (char)0x00;
+		}
+		else if (referenceChar == '&')
+		{
+			referenceChar = (char)0xFF;
+		}
+		else if (referenceChar == '*')
 		{
 			referenceChar = (char)0xAA;
 		}
