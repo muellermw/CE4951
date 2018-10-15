@@ -33,6 +33,31 @@ char usart2_getch(){
 }
 
 /*
+ * Utilizes receive buffer to get incoming characters
+ */
+char usart2_getch_noblock(){
+	char read_char = get_noblock(&RECEIVE_BUFFER); // get next char from receive buffer
+
+	// make sure a character was grabbed
+	if (read_char != '\0')
+	{
+		usart2_putch(read_char); // dump to the transmit buffer for echoing
+	}
+
+	if (read_char == '\r'){  // If character is CR
+		read_char = '\n';   // Return LF. fgets is terminated by LF
+		usart2_putch(read_char); // dump to the transmit buffer for echoing
+	} else if (read_char == '\b') {
+		// if there is a backspace (ANSI), send characters to make the console behave correctly
+		// clear the character space with a 'space', then back up to that space
+		usart2_putch(' ');
+		usart2_putch('\b');
+	}
+	return read_char;
+}
+
+/*
+ * ---ONLY WORKS IF RINGBUFFER GET METHOD BLOCKS---
  * This is an alternate get string method that implements backspace correctly.
  * For some reason, fgets does not like the backspace implementation anymore
  * and catastrophically fails. This will help when commands get more complicated

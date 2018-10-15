@@ -39,6 +39,7 @@
 // Function prototypes
 extern void usart2_init(uint32_t baud);
 extern char usart2_getch();
+extern char usart2_getch_noblock();
 extern void _gets(char* buffer, int buffSize);
 extern void usart2_putch(char c);
 // interrupt request routine

@@ -33,6 +33,23 @@ char get(RingBuffer* buffer) {
 	return element;
 }
 
+// gets element from buffer.  Will return null if buffer is empty.
+char get_noblock(RingBuffer* buffer) {
+	char ret = '\0';
+	if (hasElement(buffer))
+	{
+		ret = buffer->buffer[(buffer->get)];
+
+		if (buffer->get == BUFFER_SIZE) {
+			buffer->get = 0;
+		} else {
+			buffer->get++;
+		}
+	}
+
+	return ret;
+}
+
 // returns true (non-zero) if there is room for one element in buffer
 int hasSpace(RingBuffer* buffer) {
 	int has_space = 1;

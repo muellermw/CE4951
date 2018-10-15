@@ -7,7 +7,7 @@
 
 #include <inttypes.h>
 
-#define BUFFER_SIZE (uint32_t) 50
+#define BUFFER_SIZE (uint8_t) 255
 
 typedef struct {
 	unsigned int put;
@@ -18,6 +18,7 @@ typedef struct {
 
 extern void put(RingBuffer* buffer, char element);
 extern char get(RingBuffer* buffer);
+extern char get_noblock(RingBuffer* buffer);
 extern int hasSpace(RingBuffer* buffer);
 extern int hasElement(RingBuffer* buffer);
 
