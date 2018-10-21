@@ -14,10 +14,10 @@ static void disableMonitorClock();
 static void enableMonitorClock();
 static void resetReceivedMessage();
 
-char manchesterArray[TRANSMISSION_SIZE_MAX * 8];
-char asciiArray[TRANSMISSION_SIZE_MAX];
+static char manchesterArray[TRANSMISSION_SIZE_MAX * 8];
+static char asciiArray[TRANSMISSION_SIZE_MAX];
 
-static uint32_t manchesterIndex = 1;
+static uint32_t manchesterIndex = 0;
 static bool messageReceived = false;
 
 static const uint16_t DELAY_TIME = 758;
@@ -70,7 +70,14 @@ void TIM3_IRQHandler(void){
 
 	if (HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3))
 	{
-		messageReceived = true;
+		if (manchesterIndex >= 8)
+		{
+			messageReceived = true;
+		}
+		else
+		{
+			resetReceivedMessage();
+		}
 	}
 
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
@@ -120,7 +127,7 @@ void EXTI3_IRQHandler(void)
  */
 static void risingEdgeTrigger(){
 	edge=RISING_EDGE;
-	manchesterArray[manchesterIndex]=1;
+	manchesterArray[manchesterIndex]=0b1;
 	manchesterIndex++;
 }
 
@@ -129,7 +136,7 @@ static void risingEdgeTrigger(){
  */
 static void fallingEdgeTrigger(){
 	edge=FALLING_EDGE;
-	manchesterArray[manchesterIndex]=0;
+	manchesterArray[manchesterIndex]=0b0;
 	manchesterIndex++;
 }
 
