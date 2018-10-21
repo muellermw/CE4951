@@ -12,16 +12,15 @@ static void fallingEdgeTrigger();
 static void risingEdgeTrigger();
 static void disableMonitorClock();
 static void enableMonitorClock();
+static void resetReceivedMessage();
 
-static char manchesterArray[TRANSMISSION_SIZE_MAX * 8 * 2];
-static char askiiArray[TRANSMISSION_SIZE_MAX * 8 * 2];
-static char charAray[TRANSMISSION_SIZE_MAX];//THIS IS THE ARRAY THAT HOLDS THE CAHRS. IT NEEDS TO BE CLEARED AND INDEX RESET IN MAIN
+char manchesterArray[TRANSMISSION_SIZE_MAX * 8];
+char asciiArray[TRANSMISSION_SIZE_MAX];
 
-static uint32_t manchesterIndex=1;
-static uint32_t manchesterIterator=1;
-static uint32_t cahrArrayIndex=0;//THIS IS THE INDEX FOR THE CHAR ARRAY. IT NEEDS TO BE RESET TO 0 IN MAIN
+static uint32_t manchesterIndex = 1;
+static bool messageReceived = false;
 
-static const uint16_t DELAY_TIME = 2000;//Got value after testing with scope to get us a .5ms delay
+static const uint16_t DELAY_TIME = 758;
 static TIM_HandleTypeDef hTim3 =
 {
 	.Instance = TIM3
@@ -44,13 +43,13 @@ void receiver_Init() {
 
 	HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
-	// initialize timer 3 as a 1.1ms timer interrupt when triggered
+	// initialize timer 3 as a 1.32ms timer interrupt when triggered
 	__HAL_RCC_TIM3_CLK_ENABLE();
 	hTim3.Instance = TIM3;
 	hTim3.Init.Prescaler = 0;
 	hTim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 	// set auto-reload register
-	hTim3.Init.Period = (16000000/DELAY_TIME); // 16,000,000/910 = 1.11ms timer
+	hTim3.Init.Period = (16000000/DELAY_TIME); // 16,000,000/758 = 1.32ms timer (1320us * 16 = 21,120)
 	// initialize timer 2 registers
 	HAL_TIM_Base_Init(&hTim3);
 	HAL_TIM_Base_Start(&hTim3);
@@ -58,40 +57,23 @@ void receiver_Init() {
 	HAL_NVIC_SetPriority(TIM3_IRQn,1,1);
 	HAL_NVIC_EnableIRQ(TIM3_IRQn);
 	disableMonitorClock();
-	memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
-	memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
-	memset(charAray,0,TRANSMISSION_SIZE_MAX );
-
-	manchesterArray[0]='1';//sets the first manchester bit
-
+	resetReceivedMessage();
 }
 
 /**
- * interrupt handler for the timer. When the timer runs out it means 1 of 3 things. Their is a colision. THeir was no edge but it is still high. Their was no edge but it is still low. Manchester dose not change on every edge so this is needed to detect non edge transision bits
+ * interrupt handler for the timer. When the timer runs out it means 1 of 3 things.
+ * There is a collision. There was no edge but it is still high. There was no edge but it is still low.
+ * Manchester dose not change on every edge so this is needed to detect non edge transition bits
  */
 void TIM3_IRQHandler(void){
-
 	HAL_NVIC_DisableIRQ(EXTI3_IRQn);
 
-	if(getCurrentMonitorState()!=COLLISION_STATE){
-
-	if(edge==RISING_EDGE){
-		risingEdgeTrigger();
-	}else{
-		fallingEdgeTrigger();
+	if (HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3))
+	{
+		messageReceived = true;
 	}
+
 	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
-
-	}else{
-		memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
-		memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
-		memset(charAray,'0',TRANSMISSION_SIZE_MAX );
-		manchesterArray[0]='1';//sets the first manchester bit //WHEN TRANSMITTING SEND A 7 AS THE FIRST BIT THIS IF 0X55 AS PER LAB MANUAL
-s
-		cahrArrayIndex=0;
-		manchesterIndex=1;
-		manchesterIterator=1;
-	}
 	HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 	disableMonitorClock();
 }
@@ -101,18 +83,36 @@ s
  */
 void EXTI3_IRQHandler(void)
 {
-	// reset the timer
-	disableMonitorClock();
-
-	//Sets the edge as rising or falling
-	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3)){
-		risingEdgeTrigger();
-	}else{
-		fallingEdgeTrigger();
+	uint32_t ticks = __HAL_TIM_GET_COUNTER(&hTim3);
+	int edgeSample = HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3);
+	if (ticks == 0)
+	{
+		manchesterArray[manchesterIndex] = 0;
+		manchesterIndex++;
+		enableMonitorClock();
 	}
-	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
+	// 0.5 + 1.32% (16 * 506.6 = 8106)
+	else if (ticks <= 8106)
+	{
+		// we ignore the clock edge
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
+		return;
+	}
+	else
+	{
+		//Sets the edge as rising or falling
+		if (edgeSample) {
+			risingEdgeTrigger();
+		} else {
+			fallingEdgeTrigger();
+		}
 
-	enableMonitorClock();
+		// reset the timer
+		disableMonitorClock();
+		enableMonitorClock();
+	}
+
+	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
 }
 
 /**
@@ -120,31 +120,7 @@ void EXTI3_IRQHandler(void)
  */
 static void risingEdgeTrigger(){
 	edge=RISING_EDGE;
-	manchesterArray[manchesterIndex]='1';
-
-	//We now have 16 bits recived
-		if((manchesterIndex+1)%16==0){
-			//this pulles the clock signal out and keeps the data signal
-			for(int i=0; i<8;i++){
-				askiiArray[i]=manchesterArray[manchesterIterator];
-				manchesterIterator=(manchesterIterator+2);
-			}
-
-			//This converts from a string of binary to char array.
-			char bitarray8[8];
-			for(int j=0;j<8;j++){
-				bitarray8[j]=(char)askiiArray[j];
-			}
-			charAray[cahrArrayIndex]=strtol(bitarray8,(char **)NULL,2);//array where all chars are stored
-			cahrArrayIndex++;//index of cahr array
-
-			memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the manchester array
-			memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the askii array
-
-			//Re initalizes manchester aand
-			manchesterIndex=0;
-			manchesterIterator=1;
-		}
+	manchesterArray[manchesterIndex]=1;
 	manchesterIndex++;
 }
 
@@ -153,32 +129,54 @@ static void risingEdgeTrigger(){
  */
 static void fallingEdgeTrigger(){
 	edge=FALLING_EDGE;
-	manchesterArray[manchesterIndex]='0';
-
-	//We now have 16 bits recived
-		if((manchesterIndex+1)%16==0){
-			//this pulles the clock signal out and keeps the data signal
-			for(int i=0; i<8;i++){
-				askiiArray[i]=manchesterArray[manchesterIterator];
-				manchesterIterator=(manchesterIterator+2);
-			}
-
-			//This converts from a string of binary to char array.
-			char bitarray8[8];
-			for(int j=0;j<8;j++){
-				bitarray8[j]=(char)askiiArray[j];
-			}
-			charAray[cahrArrayIndex]=strtol(bitarray8,(char **)NULL,2);//array where all chars are stored
-			cahrArrayIndex++;//index of cahr array
-
-			memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the manchester array
-			memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the askii array
-
-			//Re initalizes manchester aand
-			manchesterIndex=0;
-			manchesterIterator=1;
-		}
+	manchesterArray[manchesterIndex]=0;
 	manchesterIndex++;
+}
+
+/**
+ * Convert Manchester bit sequence to ASCII characters
+ */
+void convertReceivedMessage()
+{
+	int manchesterIterator = 0;
+	int asciiIndex = 0;
+
+	while (manchesterIterator < manchesterIndex)
+	{
+		asciiArray[asciiIndex] = (manchesterArray[manchesterIterator+0] << 7 |
+								  manchesterArray[manchesterIterator+1] << 6 |
+								  manchesterArray[manchesterIterator+2] << 5 |
+								  manchesterArray[manchesterIterator+3] << 4 |
+								  manchesterArray[manchesterIterator+4] << 3 |
+								  manchesterArray[manchesterIterator+5] << 2 |
+								  manchesterArray[manchesterIterator+6] << 1 |
+								  manchesterArray[manchesterIterator+7]);
+		manchesterIterator += 8;
+		asciiIndex++;
+	}
+
+	if (asciiIndex <= TRANSMISSION_SIZE_MAX)
+	{
+		// add a null terminator to the string
+		asciiArray[asciiIndex] = '\0';
+	}
+}
+
+void printAnyReceivedMessage()
+{
+	if (messageReceived == true)
+	{
+		convertReceivedMessage();
+		printf("MESSAGE RECEIVED:\n");
+		printf("%s\n", asciiArray);
+		resetReceivedMessage();
+	}
+}
+
+static void resetReceivedMessage()
+{
+	manchesterIndex=0;
+	messageReceived = false;
 }
 
 static void disableMonitorClock(){

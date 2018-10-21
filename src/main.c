@@ -63,10 +63,10 @@ int main(void)
 					}
 				}
 			}
-			// TODO
 			/*********************************************************
-			 * AFTER THIS IF-STATEMENT WE CAN CHECK FOR RECEIVER INPUT
+			 * AFTER THIS IF-STATEMENT WE CHECK FOR RECEIVER INPUT
 			 ********************************************************/
+			printAnyReceivedMessage();
 		}
 		// append the ending null character
 		inputBuf[size] = '\0';

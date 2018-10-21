@@ -16,7 +16,7 @@
 #define TRANSMISSION_SIZE_MAX 255
 
 void receiver_Init();
-
-
+void convertReceivedMessage();
+void printAnyReceivedMessage();
 
 #endif /* RECEIVER_H_ */
