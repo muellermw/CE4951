@@ -4,21 +4,29 @@
 
 #include "receiver.h"
 #include "channel_monitor.h"
-#include "leds.h"
 #include <stdint.h>
+#include <string.h>
+#include <unistd.h>
 
 static void fallingEdgeTrigger();
 static void risingEdgeTrigger();
 static void disableMonitorClock();
 static void enableMonitorClock();
 
-static const uint16_t DELAY_TIME = 900;//Got value after testing with scope to get us a 1.11ms delay
+static char manchesterArray[TRANSMISSION_SIZE_MAX * 8 * 2];
+static char askiiArray[TRANSMISSION_SIZE_MAX * 8 * 2];
+static char charAray[TRANSMISSION_SIZE_MAX];//THIS IS THE ARRAY THAT HOLDS THE CAHRS. IT NEEDS TO BE CLEARED AND INDEX RESET IN MAIN
+
+static uint32_t manchesterIndex=1;
+static uint32_t manchesterIterator=1;
+static uint32_t cahrArrayIndex=0;//THIS IS THE INDEX FOR THE CHAR ARRAY. IT NEEDS TO BE RESET TO 0 IN MAIN
+
+static const uint16_t DELAY_TIME = 2000;//Got value after testing with scope to get us a .5ms delay
 static TIM_HandleTypeDef hTim3 =
 {
 	.Instance = TIM3
 };
 
-static state_enum monitor_state;
 static edge_enum edge;
 
 /**
@@ -36,7 +44,7 @@ void receiver_Init() {
 
 	HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
-	// initialize timer 2 as a 1.1ms timer interrupt when triggered
+	// initialize timer 3 as a 1.1ms timer interrupt when triggered
 	__HAL_RCC_TIM3_CLK_ENABLE();
 	hTim3.Instance = TIM3;
 	hTim3.Init.Prescaler = 0;
@@ -50,36 +58,40 @@ void receiver_Init() {
 	HAL_NVIC_SetPriority(TIM3_IRQn,1,1);
 	HAL_NVIC_EnableIRQ(TIM3_IRQn);
 	disableMonitorClock();
+	memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
+	memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
+	memset(charAray,0,TRANSMISSION_SIZE_MAX );
 
-	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_5))
-	{
-		monitor_state=IDLE_STATE;
-		led_on(0);
-	}
-	else
-	{
-		monitor_state=COLLISION_STATE;
-		led_on(9);
-	}
+	manchesterArray[0]='1';//sets the first manchester bit
+
 }
 
 /**
- * interrupt handler for the timer. sets the new state of the monitor
+ * interrupt handler for the timer. When the timer runs out it means 1 of 3 things. Their is a colision. THeir was no edge but it is still high. Their was no edge but it is still low. Manchester dose not change on every edge so this is needed to detect non edge transision bits
  */
 void TIM3_IRQHandler(void){
 
 	HAL_NVIC_DisableIRQ(EXTI3_IRQn);
 
-	led_all_off();//Turns off led due to state change
+	if(getCurrentMonitorState()!=COLLISION_STATE){
 
-	if(edge==RISING_EDGE) {
-		monitor_state=IDLE_STATE;
-		led_on(0);
-	} else {
-		monitor_state=COLLISION_STATE;
-		led_on(9);
+	if(edge==RISING_EDGE){
+		risingEdgeTrigger();
+	}else{
+		fallingEdgeTrigger();
 	}
+	__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_3);
 
+	}else{
+		memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
+		memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);
+		memset(charAray,'0',TRANSMISSION_SIZE_MAX );
+		manchesterArray[0]='1';//sets the first manchester bit //WHEN TRANSMITTING SEND A 7 AS THE FIRST BIT THIS IF 0X55 AS PER LAB MANUAL
+s
+		cahrArrayIndex=0;
+		manchesterIndex=1;
+		manchesterIterator=1;
+	}
 	HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 	disableMonitorClock();
 }
@@ -92,6 +104,7 @@ void EXTI3_IRQHandler(void)
 	// reset the timer
 	disableMonitorClock();
 
+	//Sets the edge as rising or falling
 	if(HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3)){
 		risingEdgeTrigger();
 	}else{
@@ -106,22 +119,66 @@ void EXTI3_IRQHandler(void)
  * called when a rising edge is found
  */
 static void risingEdgeTrigger(){
-	led_all_off();//Turns off led due to state change
-	//set LEDs to indicate busy_state
 	edge=RISING_EDGE;
-	monitor_state=BUSY_STATE;
-	led_on(4);
+	manchesterArray[manchesterIndex]='1';
+
+	//We now have 16 bits recived
+		if((manchesterIndex+1)%16==0){
+			//this pulles the clock signal out and keeps the data signal
+			for(int i=0; i<8;i++){
+				askiiArray[i]=manchesterArray[manchesterIterator];
+				manchesterIterator=(manchesterIterator+2);
+			}
+
+			//This converts from a string of binary to char array.
+			char bitarray8[8];
+			for(int j=0;j<8;j++){
+				bitarray8[j]=(char)askiiArray[j];
+			}
+			charAray[cahrArrayIndex]=strtol(bitarray8,(char **)NULL,2);//array where all chars are stored
+			cahrArrayIndex++;//index of cahr array
+
+			memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the manchester array
+			memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the askii array
+
+			//Re initalizes manchester aand
+			manchesterIndex=0;
+			manchesterIterator=1;
+		}
+	manchesterIndex++;
 }
 
 /**
  * Called when a falling edge is found
  */
 static void fallingEdgeTrigger(){
-	led_all_off();//Turns off led due to state change
-	//set LEDs to indicate busy_state
 	edge=FALLING_EDGE;
-	monitor_state=BUSY_STATE;
-	led_on(4);
+	manchesterArray[manchesterIndex]='0';
+
+	//We now have 16 bits recived
+		if((manchesterIndex+1)%16==0){
+			//this pulles the clock signal out and keeps the data signal
+			for(int i=0; i<8;i++){
+				askiiArray[i]=manchesterArray[manchesterIterator];
+				manchesterIterator=(manchesterIterator+2);
+			}
+
+			//This converts from a string of binary to char array.
+			char bitarray8[8];
+			for(int j=0;j<8;j++){
+				bitarray8[j]=(char)askiiArray[j];
+			}
+			charAray[cahrArrayIndex]=strtol(bitarray8,(char **)NULL,2);//array where all chars are stored
+			cahrArrayIndex++;//index of cahr array
+
+			memset(manchesterArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the manchester array
+			memset(askiiArray,'0',TRANSMISSION_SIZE_MAX * 8 * 2);//resets the askii array
+
+			//Re initalizes manchester aand
+			manchesterIndex=0;
+			manchesterIterator=1;
+		}
+	manchesterIndex++;
 }
 
 static void disableMonitorClock(){
