@@ -99,7 +99,7 @@ void EXTI3_IRQHandler(void)
 		manchesterIndex++;
 		enableMonitorClock();
 	}
-	// 0.5 + 1.32% (16 * 506.6 = 8106)
+	// (500us + 1.32% = 506.6us) (16 ticks/us * 506.6us = 8106 ticks)
 	else if (ticks <= 8106)
 	{
 		// we ignore the clock edge
