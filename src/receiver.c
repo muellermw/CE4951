@@ -15,7 +15,8 @@ static void enableMonitorClock();
 static void resetReceivedMessage();
 
 static char manchesterArray[TRANSMISSION_SIZE_MAX * 8];
-static char asciiArray[TRANSMISSION_SIZE_MAX];
+// +1 to allow 255 characters plus a null character
+static char asciiArray[TRANSMISSION_SIZE_MAX + 1];
 
 static uint32_t manchesterIndex = 0;
 static bool messageReceived = false;
@@ -127,8 +128,12 @@ void EXTI3_IRQHandler(void)
  */
 static void risingEdgeTrigger(){
 	edge=RISING_EDGE;
-	manchesterArray[manchesterIndex]=0b1;
-	manchesterIndex++;
+	// make sure that we aren't overflowing the bit buffer
+	if (manchesterIndex < (TRANSMISSION_SIZE_MAX*8))
+	{
+		manchesterArray[manchesterIndex]=0b1;
+		manchesterIndex++;
+	}
 }
 
 /**
@@ -136,8 +141,12 @@ static void risingEdgeTrigger(){
  */
 static void fallingEdgeTrigger(){
 	edge=FALLING_EDGE;
-	manchesterArray[manchesterIndex]=0b0;
-	manchesterIndex++;
+	// make sure that we aren't overflowing the bit buffer
+	if (manchesterIndex < (TRANSMISSION_SIZE_MAX*8))
+	{
+		manchesterArray[manchesterIndex]=0b0;
+		manchesterIndex++;
+	}
 }
 
 /**
@@ -162,7 +171,7 @@ void convertReceivedMessage()
 		asciiIndex++;
 	}
 
-	if (asciiIndex <= TRANSMISSION_SIZE_MAX)
+	if (asciiIndex <= TRANSMISSION_SIZE_MAX+1)
 	{
 		// add a null terminator to the string
 		asciiArray[asciiIndex] = '\0';
