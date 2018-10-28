@@ -13,10 +13,21 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#define TRANSMISSION_SIZE_MAX 255
+
+#define MY_ADDRESS_11 11
+#define MY_ADDRESS_12 12
+
+typedef enum
+{
+	NoError,
+	PreambleError,
+	VersionError,
+	LengthError,
+	CRCflagError,
+	CRCtrailerError
+} receiverErrorType;
 
 void receiver_Init();
-void convertReceivedMessage();
 void printAnyReceivedMessage();
 
 #endif /* RECEIVER_H_ */

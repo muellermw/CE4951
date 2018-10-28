@@ -4,6 +4,8 @@
 
 #include "receiver.h"
 #include "channel_monitor.h"
+#include "transmitter.h"
+#include "crc.h"
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -13,21 +15,30 @@ static void risingEdgeTrigger();
 static void disableMonitorClock();
 static void enableMonitorClock();
 static void resetReceivedMessage();
+static void convertReceivedMessageToASCII();
+static receiverErrorType receiverParsePacket();
+static bool receiverCheckPreamble();
+static bool receiverCheckVersion();
+static bool receiverGetLength();
+static bool receiverCheckCRCflag();
+static bool receiverCheckCRCtrailer();
+static void receiverGetSource();
+static void receiverGetDestination();
 
 static char manchesterArray[TRANSMISSION_SIZE_MAX * 8];
-// +1 to allow 255 characters plus a null character
+// +1 to allow characters plus a null character
 static char asciiArray[TRANSMISSION_SIZE_MAX + 1];
 
 static uint32_t manchesterIndex = 0;
 static bool messageReceived = false;
 
-static const uint16_t DELAY_TIME = 758;
+static const uint16_t DELAY_TIME = 968;
 static TIM_HandleTypeDef hTim3 =
 {
 	.Instance = TIM3
 };
 
-static edge_enum edge;
+static struct packet receivedPacket;
 
 /**
  * initialize timers, set current state
@@ -50,7 +61,7 @@ void receiver_Init() {
 	hTim3.Init.Prescaler = 0;
 	hTim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 	// set auto-reload register
-	hTim3.Init.Period = (16000000/DELAY_TIME); // 16,000,000/758 = 1.32ms timer (1320us * 16 = 21,120)
+	hTim3.Init.Period = (16000000/DELAY_TIME); // 16,000,000/968 = 1032us timer (1032us * 16 = 16,512)
 	// initialize timer 2 registers
 	HAL_TIM_Base_Init(&hTim3);
 	HAL_TIM_Base_Start(&hTim3);
@@ -64,7 +75,7 @@ void receiver_Init() {
 /**
  * interrupt handler for the timer. When the timer runs out it means 1 of 3 things.
  * There is a collision. There was no edge but it is still high. There was no edge but it is still low.
- * Manchester dose not change on every edge so this is needed to detect non edge transition bits
+ * Manchester does not change on every edge so this is needed to detect non edge transition bits
  */
 void TIM3_IRQHandler(void){
 	HAL_NVIC_DisableIRQ(EXTI3_IRQn);
@@ -87,7 +98,7 @@ void TIM3_IRQHandler(void){
 }
 
 /**
- * Interrupt handler for the input rising and falling edge tigger
+ * Interrupt handler for the input rising and falling edge trigger
  */
 void EXTI3_IRQHandler(void)
 {
@@ -127,7 +138,6 @@ void EXTI3_IRQHandler(void)
  * called when a rising edge is found
  */
 static void risingEdgeTrigger(){
-	edge=RISING_EDGE;
 	// make sure that we aren't overflowing the bit buffer
 	if (manchesterIndex < (TRANSMISSION_SIZE_MAX*8))
 	{
@@ -140,7 +150,6 @@ static void risingEdgeTrigger(){
  * Called when a falling edge is found
  */
 static void fallingEdgeTrigger(){
-	edge=FALLING_EDGE;
 	// make sure that we aren't overflowing the bit buffer
 	if (manchesterIndex < (TRANSMISSION_SIZE_MAX*8))
 	{
@@ -152,7 +161,7 @@ static void fallingEdgeTrigger(){
 /**
  * Convert Manchester bit sequence to ASCII characters
  */
-void convertReceivedMessage()
+static void convertReceivedMessageToASCII()
 {
 	int manchesterIterator = 0;
 	int asciiIndex = 0;
@@ -182,10 +191,206 @@ void printAnyReceivedMessage()
 {
 	if (messageReceived == true)
 	{
-		convertReceivedMessage();
-		printf("MESSAGE RECEIVED:\n");
-		printf("%s\n", asciiArray);
+		convertReceivedMessageToASCII();
+		receiverErrorType errorCheck;
+		errorCheck = receiverParsePacket();
+
+		switch (errorCheck)
+		{
+		case PreambleError:
+			printf("Message received with no valid preamble. Discarding...\n");
+			break;
+
+		case VersionError:
+			printf("Message received with invalid version number. Continuing anyway...\n");
+			break;
+
+		case LengthError:
+			printf("Message received with 0 message length. Trying with length 1 instead.\n");
+			break;
+
+		case CRCflagError:
+			printf("Message received with invalid CRC flag. Continuing and checking CRC.\n");
+			break;
+
+		case CRCtrailerError:
+			printf("CRC trailer does not match expected CRC. The message may have been corrupted...\n");
+			break;
+
+		case NoError:
+			printf("Message sent to address %d detected.\n", receivedPacket.Destination);
+			break;
+		}
+
+		if ((errorCheck!=PreambleError) && (receivedPacket.Destination == MY_SOURCE_ADDRESS))
+		{
+			char receivedString[MESSAGE_SIZE_MAX];
+			// copy the message from the received ASCII array into the new char array to print out the message
+			strncpy(receivedString, &asciiArray[MESSAGE_INDEX], sizeof(receivedString));
+			// add a null character at the end of the string
+			receivedString[(uint8_t)receivedPacket.Length] = '\0';
+			printf("MESSAGE RECEIVED:\n%s\n", receivedString);
+		}
+
 		resetReceivedMessage();
+	}
+}
+
+/*
+ * Parse through the packet that was received
+ *
+ * Return any error that was found
+ */
+static receiverErrorType receiverParsePacket()
+{
+	receiverErrorType packetCheck = NoError;
+
+	if (!receiverCheckPreamble())
+	{
+		// do not attempt to parse any further if the preamble is incorrect
+		return PreambleError;
+	}
+
+	if (!receiverCheckVersion())
+	{
+		packetCheck = VersionError;
+	}
+
+	if (!receiverGetLength())
+	{
+		packetCheck = LengthError;
+	}
+
+	// get packet source and destination
+	receiverGetSource();
+	receiverGetDestination();
+
+	if (!receiverCheckCRCflag())
+	{
+		packetCheck = CRCflagError;
+	}
+
+	if (!receiverCheckCRCtrailer())
+	{
+		packetCheck = CRCtrailerError;
+	}
+
+	return packetCheck;
+}
+
+/*
+ * Check that the preamble of the message contains 0x55
+ */
+static bool receiverCheckPreamble()
+{
+	receivedPacket.Sync = asciiArray[PREAMBLE_INDEX];
+	if (receivedPacket.Sync == PREAMBLE)
+	{
+		return true;
+	}
+	else
+	{
+		// the preamble of the message is not 0x55, so let caller know that this is invalid
+		return false;
+	}
+}
+
+/*
+ * Check that the packet version is 0x01
+ */
+static bool receiverCheckVersion()
+{
+	receivedPacket.Version = asciiArray[VERSION_INDEX];
+	if (receivedPacket.Version == VERSION)
+	{
+		return true;
+	}
+	else
+	{
+		// the version of the message is not 0x01, so let caller know that this is invalid
+		return false;
+	}
+}
+
+/*
+ * Check that the length is greater than 0
+ */
+static bool receiverGetLength()
+{
+	// default to a length of 1
+	receivedPacket.Length = 1;
+	if (asciiArray[LENGTH_INDEX] != 0)
+	{
+		receivedPacket.Length = asciiArray[LENGTH_INDEX];
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+/*
+ * Get the source address from the packet
+ */
+static void receiverGetSource()
+{
+	receivedPacket.Source = asciiArray[SOURCE_INDEX];
+}
+
+/*
+ * Get the source address from the packet
+ */
+static void receiverGetDestination()
+{
+	receivedPacket.Destination = asciiArray[DESTINATION_INDEX];
+}
+
+/*
+ * Get the CRC flag from the packet,
+ * return false if the flag is not 0 or 1
+ */
+static bool receiverCheckCRCflag()
+{
+	// default to perform CRC check
+	receivedPacket.CRCflag = 0x1;
+	if (asciiArray[CRC_FLAG_INDEX]==0x00 || asciiArray[CRC_FLAG_INDEX]==0x01)
+	{
+		receivedPacket.CRCflag = asciiArray[CRC_FLAG_INDEX];
+		return true;
+	}
+	else
+	{
+		// an invalid CRC flag has been encountered, let the caller know
+		return false;
+	}
+}
+
+/**
+ * Check the CRC trailer that concluded the packet.
+ * If the CRC flag is 1, compare the CRC trailer with the calculated CRC for the message
+ * If the CRC flag is 0, compare the CRC trailer with 0xAA
+ * Return false is the data does not compare correctly
+ * This function assumes that the receivedPacket variable has been correctly updated thus far!
+ */
+static bool receiverCheckCRCtrailer()
+{
+	char crcCheck = (char)0xAA;
+	// get the CRC trailer by calculating the offset by going one address after the crc flag offset and message length
+	char crcTrailer = asciiArray[CRC_FLAG_INDEX + receivedPacket.Length + 1];
+
+	if (receivedPacket.CRCflag == 0x01)
+	{
+		crcCheck = calculate_CRC(&asciiArray[MESSAGE_INDEX], receivedPacket.Length);
+	}
+
+	if (crcCheck == crcTrailer)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 
@@ -208,4 +413,3 @@ static void enableMonitorClock(){
 	__HAL_TIM_SET_COUNTER(&hTim3, 0);
 	__HAL_TIM_ENABLE(&hTim3);
 }
-

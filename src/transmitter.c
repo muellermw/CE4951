@@ -8,6 +8,7 @@
 #include "stm32f4xx.h"
 #include "stm32f4xx_nucleo.h"
 #include "channel_monitor.h"
+#include "crc.h"
 #include "transmitter.h"
 #include <stdbool.h>
 
@@ -117,7 +118,7 @@ void stopTransmission(){
  * and let the transmitter know that it is ready to start the transmission
  * after the Manchester encoding is done
  */
-void startTransmission(char *array, int amountOfChars){
+void startTransmission(uint8_t destination, uint8_t CRCflag, char *array, int amountOfChars){
 	//Converts from ASCII to binary
 
 	// this would cause a memory overflow, cannot continue
@@ -126,14 +127,42 @@ void startTransmission(char *array, int amountOfChars){
 		return;
 	}
 
-	manchesterSize = amountOfChars * 8 * 2;
+	char packetString[6];
+	// +1 for the CRC FCS
+	manchesterSize = ((amountOfChars+sizeof(packetString)+1) * 8 * 2);
 	int charIndex = 0;
 	int manchesterIndex = 0;
 
+	// form the packet string
+	packetString[PREAMBLE_INDEX] = PREAMBLE;
+	packetString[VERSION_INDEX] = VERSION;
+	packetString[SOURCE_INDEX] = MY_SOURCE_ADDRESS;
+	packetString[DESTINATION_INDEX] = destination;
+	packetString[LENGTH_INDEX] = amountOfChars;
+	packetString[CRC_FLAG_INDEX] = CRCflag;
+
+	// add the start of the packet to the manchester array first
+
+	for (int i=0; i<sizeof(packetString); i++)
+	{
+		for (int j=7; j>=0; j--)
+		{
+			// go through each bit of the character and assign
+			// not the bit, and the bit to the manchester array
+			manchesterArray[manchesterIndex] = !((packetString[i]>>j) & 0b1);
+			manchesterIndex++;
+			manchesterArray[manchesterIndex] = ((packetString[i]>>j) & 0b1);
+			manchesterIndex++;
+		}
+	}
+
 	// loop through the entire string to fill the manchester array
-	while (manchesterIndex < manchesterSize)
+	// leave space to put the CRC into the end of the packet
+	while (manchesterIndex < (manchesterSize-16))
 	{
 		char referenceChar = array[charIndex];
+
+		/*
 		// implement override test characters to make unit testing easier
 		if (referenceChar == '^')
 		{
@@ -147,6 +176,7 @@ void startTransmission(char *array, int amountOfChars){
 		{
 			referenceChar = (char)0xAA;
 		}
+		*/
 
 		// increment the character index
 		charIndex++;
@@ -161,6 +191,24 @@ void startTransmission(char *array, int amountOfChars){
 			manchesterIndex++;
 		}
 	}
+
+	char crcChar = 0xAA;
+	if (CRCflag == 0x01)
+	{
+		crcChar = calculate_CRC(&array[0], amountOfChars);
+	}
+
+	// add the CRC FCS onto the end of the packet
+	for (int i=7; i>=0; i--)
+	{
+		// go through each bit of the character and assign
+		// not the bit, and the bit to the manchester array
+		manchesterArray[manchesterIndex] = !((crcChar>>i) & 0b1);
+		manchesterIndex++;
+		manchesterArray[manchesterIndex] = ((crcChar>>i) & 0b1);
+		manchesterIndex++;
+	}
+
 	// enable interrupt for timer 4
 	HAL_TIM_OC_Start_IT(&hTim4, TIM_CHANNEL_1);
 	readyToTransmit = true;

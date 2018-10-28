@@ -7,6 +7,6 @@
 #include <stdbool.h>
 
 void generate_CRC_Table();
-char calcualte_CRC(char *inputArray,int numberOfChars);
+char calculate_CRC(char *inputArray,int numberOfChars);
 
 #endif/* CRC_H */
