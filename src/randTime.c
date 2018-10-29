@@ -11,3 +11,9 @@ float randomTimeSecond(){
 	float randomTime=(float)rand()/RAND_MAX;
 	return randomTime;
 }
+
+unsigned int randomTimeMilliseconds()
+{
+	float tSec = randomTimeSecond();
+	return (unsigned int)(1000*tSec);
+}

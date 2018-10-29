@@ -38,7 +38,7 @@ int main(void)
 	receiver_Init();
 	usart2_init(38400);
 
-	char inputBuf[MESSAGE_SIZE_MAX];
+	char inputBuf[MESSAGE_SIZE_MAX+1];
 	menuLevel menuSelect = EnterDestination;
 	unsigned int destinationAddr = 0;
 	unsigned int CRCflag = 0;
@@ -72,7 +72,7 @@ int main(void)
 			if (input != '\0')
 			{
 				// make sure the buffer has enough space for another character
-				if (size < TRANSMISSION_SIZE_MAX-1)
+				if (size < MESSAGE_SIZE_MAX)
 				{
 					// check for backspaces
 					if(input=='\b' || input=='\177')
@@ -97,6 +97,7 @@ int main(void)
 			 * AFTER THIS IF-STATEMENT WE CHECK FOR INTERRUPT FLAGS,
 			 * AS THIS LOOP IS WHERE WE SPEND MOST OF OUR TIME
 			 ********************************************************/
+			handleAnyTransmissionCollision();
 			printAnyReceivedMessage();
 		}
 		// append the ending null character

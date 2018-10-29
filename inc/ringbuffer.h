@@ -7,7 +7,7 @@
 
 #include <inttypes.h>
 
-#define BUFFER_SIZE (uint8_t) 255
+#define BUFFER_SIZE (uint8_t) (255+7)
 
 typedef struct {
 	unsigned int put;

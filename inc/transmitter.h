@@ -17,6 +17,8 @@
 #define PREAMBLE 0x55
 #define VERSION 0x01
 
+#define BACKOFF_LIMIT 10
+
 struct packet
 {
 	char Sync;
@@ -31,6 +33,7 @@ struct packet
 void transmitter_init();
 void startTransmission(uint8_t destination, uint8_t CRCflag, char *array, int amountOfChars);
 void stopTransmission();
+void handleAnyTransmissionCollision();
 
 #endif /* CHANNEL_H_ */
 

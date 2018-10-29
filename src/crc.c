@@ -4,7 +4,7 @@ static char CRC_TABLE[256];
 
 //this will generate the CRC table for out polynomial 0x107 as defined in the lab doc. Called once to create the table.
 void generate_CRC_Table(){
-	char polynomial=0x107;//this ix x^8+x^2+x+1=0x107
+	uint16_t polynomial=0x107;//this ix x^8+x^2+x+1=0x107
 	for(int d=0;d<256;d++){
 		char thisByte=(char)d;
 		for(int bit=0;bit<8;bit++){

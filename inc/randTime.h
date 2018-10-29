@@ -7,4 +7,5 @@
 
 float randomTimeSecond();
 void initRandTime();
+unsigned int randomTimeMilliseconds();
 #endif

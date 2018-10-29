@@ -9,6 +9,7 @@
 #include "stm32f4xx_nucleo.h"
 #include "channel_monitor.h"
 #include "crc.h"
+#include "randTime.h"
 #include "transmitter.h"
 #include <stdbool.h>
 
@@ -25,7 +26,8 @@ static uint8_t manchesterArray[TRANSMISSION_SIZE_MAX * 8 * 2];
 static int indexOfManchester = 0;
 static int manchesterSize = 0;
 static bool readyToTransmit = false;
-
+static bool thereWasACollision = false;
+static uint8_t numberOfRandomBackoffs = 0;
 
 void transmitter_init(){
 	/*
@@ -77,9 +79,6 @@ void TIM4_IRQHandler(void){
 	// the index should never get larger than the array size
 	if (indexOfManchester >= manchesterSize)
 	{
-		// disable interrupt for timer 4
-		HAL_TIM_OC_Stop_IT(&hTim4, TIM_CHANNEL_1);
-		readyToTransmit = false;
 		stopTransmission();
 	}
 	else
@@ -99,7 +98,11 @@ void TIM4_IRQHandler(void){
 
 		if (monitorState == COLLISION_STATE)
 		{
-			stopTransmission();
+			readyToTransmit = false;
+			indexOfManchester = 0;
+			thereWasACollision = true;
+			// set pin back to idle high
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
 		}
 	}
 }
@@ -108,10 +111,38 @@ void TIM4_IRQHandler(void){
 void stopTransmission(){
 	// set pin back to idle high
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+	// disable interrupt for timer 4
+	HAL_TIM_OC_Stop_IT(&hTim4, TIM_CHANNEL_1);
+	readyToTransmit = false;
 	// reset position to resend all buffer data
 	indexOfManchester = 0;
+	numberOfRandomBackoffs = 0;
 }
 
+/*
+ * Check if there was any collisions and if there was,
+ * back off with a random delay after the collision is gone
+ */
+void handleAnyTransmissionCollision()
+{
+	if (numberOfRandomBackoffs >= BACKOFF_LIMIT)
+	{
+		stopTransmission();
+		printf("Abandoning transmission because of too many backoffs...\n");
+	}
+
+	if (thereWasACollision)
+	{
+		if (getCurrentMonitorState() != COLLISION_STATE)
+		{
+			HAL_Delay(randomTimeMilliseconds());
+			numberOfRandomBackoffs++;
+			readyToTransmit = true;
+			thereWasACollision = false;
+		}
+	}
+
+}
 
 /*
  * This method will transform a string a binary encoded Manchester array
