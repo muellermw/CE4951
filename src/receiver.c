@@ -222,7 +222,8 @@ void printAnyReceivedMessage()
 			break;
 		}
 
-		if ((errorCheck!=PreambleError) && (receivedPacket.Destination == MY_SOURCE_ADDRESS))
+		// accept packets addressed to our address or address 0
+		if ((errorCheck!=PreambleError) && (receivedPacket.Destination==MY_SOURCE_ADDRESS || receivedPacket.Destination==0))
 		{
 			char receivedString[MESSAGE_SIZE_MAX];
 			// copy the message from the received ASCII array into the new char array to print out the message
