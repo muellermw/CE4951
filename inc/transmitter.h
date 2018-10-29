@@ -17,7 +17,7 @@
 #define PREAMBLE 0x55
 #define VERSION 0x01
 
-#define BACKOFF_LIMIT (10+1)
+#define BACKOFF_LIMIT (15)
 
 struct packet
 {
