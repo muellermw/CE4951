@@ -17,7 +17,7 @@
 #define PREAMBLE 0x55
 #define VERSION 0x01
 
-#define BACKOFF_LIMIT 10
+#define BACKOFF_LIMIT (10+1)
 
 struct packet
 {
@@ -36,4 +36,3 @@ void stopTransmission();
 void handleAnyTransmissionCollision();
 
 #endif /* CHANNEL_H_ */
-

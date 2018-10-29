@@ -125,19 +125,23 @@ void stopTransmission(){
  */
 void handleAnyTransmissionCollision()
 {
-	if (numberOfRandomBackoffs >= BACKOFF_LIMIT)
-	{
-		stopTransmission();
-		printf("Abandoning transmission because of too many backoffs...\n");
-	}
-
 	if (thereWasACollision)
 	{
 		if (getCurrentMonitorState() != COLLISION_STATE)
 		{
-			HAL_Delay(randomTimeMilliseconds());
 			numberOfRandomBackoffs++;
-			readyToTransmit = true;
+
+			if (numberOfRandomBackoffs >= BACKOFF_LIMIT)
+			{
+				stopTransmission();
+				printf("Abandoning transmission because of too many backoffs...\n");
+			}
+			else
+			{
+				HAL_Delay(randomTimeMilliseconds());
+				readyToTransmit = true;
+			}
+
 			thereWasACollision = false;
 		}
 	}
