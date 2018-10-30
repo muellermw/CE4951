@@ -82,7 +82,7 @@ void TIM3_IRQHandler(void){
 
 	if (HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3))
 	{
-		if (manchesterIndex >= 8)
+		if (manchesterIndex >= MINIMUM_MANCHESTER_LENGTH)
 		{
 			messageReceived = true;
 		}
