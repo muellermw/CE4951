@@ -37,8 +37,8 @@ int main(void)
 	channel_Monitor_Init();
 	receiver_Init();
 	usart2_init(38400);
-
-	char inputBuf[MESSAGE_SIZE_MAX+1];
+	// +2 for the newline from user input and null character
+	char inputBuf[MESSAGE_SIZE_MAX+2];
 	menuLevel menuSelect = EnterDestination;
 	unsigned int destinationAddr = 0;
 	unsigned int CRCflag = 0;
@@ -72,7 +72,7 @@ int main(void)
 			if (input != '\0')
 			{
 				// make sure the buffer has enough space for another character
-				if (size < MESSAGE_SIZE_MAX)
+				if (size < MESSAGE_SIZE_MAX+1)
 				{
 					// check for backspaces
 					if(input=='\b' || input=='\177')

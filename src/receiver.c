@@ -159,7 +159,7 @@ static void fallingEdgeTrigger(){
 }
 
 /**
- * Convert Manchester bit sequence to ASCII characters
+ * Convert Manchester bit sequence to ASCII characters ended with a null character
  */
 static void convertReceivedMessageToASCII()
 {
@@ -180,7 +180,7 @@ static void convertReceivedMessageToASCII()
 		asciiIndex++;
 	}
 
-	if (asciiIndex <= TRANSMISSION_SIZE_MAX+1)
+	if (asciiIndex < TRANSMISSION_SIZE_MAX+1)
 	{
 		// add a null terminator to the string
 		asciiArray[asciiIndex] = '\0';
