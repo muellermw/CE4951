@@ -58,14 +58,14 @@ void transmitter_init(){
 	/*
 	 * Enable output pin
 	 */
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	GPIO_InitTypeDef D13;
-	D13.Pin = GPIO_PIN_5;
-	D13.Mode = GPIO_MODE_OUTPUT_PP;
-	D13.Speed=GPIO_SPEED_FREQ_VERY_HIGH;
-	HAL_GPIO_Init(GPIOA, &D13);
+	__HAL_RCC_GPIOB_CLK_ENABLE();
+	GPIO_InitTypeDef D10;
+	D10.Pin = GPIO_PIN_6;
+	D10.Mode = GPIO_MODE_OUTPUT_PP;
+	D10.Speed=GPIO_SPEED_FREQ_VERY_HIGH;
+	HAL_GPIO_Init(GPIOB, &D10);
 	// initialize pin output to high
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 }
 
 /*
@@ -90,9 +90,9 @@ void TIM4_IRQHandler(void){
 		if ( (readyToTransmit==true) && ( (monitorState==IDLE_STATE && indexOfManchester==0) ||
 				(monitorState!=COLLISION_STATE && indexOfManchester>0) ) )
 		{
-			// Changes the output of pin PA5 (D13)
+			// Changes the output of pin PB6 (D10)
 			// This outputs 3.3V logic which is just what we need
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, manchesterArray[indexOfManchester]);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, manchesterArray[indexOfManchester]);
 			indexOfManchester++;
 		}
 
@@ -102,7 +102,7 @@ void TIM4_IRQHandler(void){
 			indexOfManchester = 0;
 			thereWasACollision = true;
 			// set pin back to idle high
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 		}
 	}
 }
@@ -110,7 +110,7 @@ void TIM4_IRQHandler(void){
 //called when we have a collision on the channel monitor
 void stopTransmission(){
 	// set pin back to idle high
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
 	// disable interrupt for timer 4
 	HAL_TIM_OC_Stop_IT(&hTim4, TIM_CHANNEL_1);
 	readyToTransmit = false;
