@@ -25,11 +25,18 @@ static bool receiverCheckCRCtrailer();
 static void receiverGetSource();
 static void receiverGetDestination();
 
-static char manchesterArray[TRANSMISSION_SIZE_MAX * 8];
+static char manchesterBuffer1[TRANSMISSION_SIZE_MAX * 8];
+static char manchesterBuffer2[TRANSMISSION_SIZE_MAX * 8];
+static char* receiveBuffer;
+static char* processBuffer;
 // +1 to allow characters plus a null character
 static char asciiArray[TRANSMISSION_SIZE_MAX + 1];
 
-static uint32_t manchesterIndex = 0;
+static uint32_t manchesterBuffer1Index = 0;
+static uint32_t manchesterBuffer2Index = 0;
+static uint32_t* receiveBufferIndex;
+static uint32_t* processBufferIndex;
+
 static bool messageReceived = false;
 
 static const uint16_t DELAY_TIME = 968;
@@ -70,6 +77,9 @@ void receiver_Init() {
 	HAL_NVIC_EnableIRQ(TIM3_IRQn);
 	disableMonitorClock();
 	resetReceivedMessage();
+
+	receiveBuffer = &manchesterBuffer1[0];
+	receiveBufferIndex = &manchesterBuffer1Index;
 }
 
 /**
@@ -82,8 +92,24 @@ void TIM3_IRQHandler(void){
 
 	if (HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3))
 	{
-		if (manchesterIndex > MINIMUM_MANCHESTER_LENGTH)
+		if (*receiveBufferIndex > MINIMUM_MANCHESTER_LENGTH)
 		{
+			// flip buffers
+			if (receiveBuffer == &manchesterBuffer1[0])
+			{
+				receiveBuffer = &manchesterBuffer2[0];
+				receiveBufferIndex = &manchesterBuffer2Index;
+				processBuffer = &manchesterBuffer1[0];
+				processBufferIndex = &manchesterBuffer1Index;
+			}
+			else
+			{
+				receiveBuffer = &manchesterBuffer1[0];
+				receiveBufferIndex = &manchesterBuffer1Index;
+				processBuffer = &manchesterBuffer2[0];
+				processBufferIndex = &manchesterBuffer2Index;
+			}
+
 			messageReceived = true;
 		}
 		else
@@ -106,8 +132,8 @@ void EXTI3_IRQHandler(void)
 	int edgeSample = HAL_GPIO_ReadPin(GPIOB,GPIO_PIN_3);
 	if (ticks == 0)
 	{
-		manchesterArray[manchesterIndex] = 0;
-		manchesterIndex++;
+		receiveBuffer[*receiveBufferIndex] = 0;
+		receiveBufferIndex[0] = receiveBufferIndex[0]+1;
 		enableMonitorClock();
 	}
 	// (500us + 1.32% = 506.6us) (16 ticks/us * 506.6us = 8106 ticks)
@@ -139,10 +165,10 @@ void EXTI3_IRQHandler(void)
  */
 static void risingEdgeTrigger(){
 	// make sure that we aren't overflowing the bit buffer
-	if (manchesterIndex < (TRANSMISSION_SIZE_MAX*8))
+	if (*receiveBufferIndex < (TRANSMISSION_SIZE_MAX*8))
 	{
-		manchesterArray[manchesterIndex]=0b1;
-		manchesterIndex++;
+		receiveBuffer[*receiveBufferIndex]=0b1;
+		receiveBufferIndex[0]++;
 	}
 }
 
@@ -151,10 +177,10 @@ static void risingEdgeTrigger(){
  */
 static void fallingEdgeTrigger(){
 	// make sure that we aren't overflowing the bit buffer
-	if (manchesterIndex < (TRANSMISSION_SIZE_MAX*8))
+	if (*receiveBufferIndex < (TRANSMISSION_SIZE_MAX*8))
 	{
-		manchesterArray[manchesterIndex]=0b0;
-		manchesterIndex++;
+		receiveBuffer[*receiveBufferIndex]=0b0;
+		receiveBufferIndex[0]++;
 	}
 }
 
@@ -166,16 +192,16 @@ static void convertReceivedMessageToASCII()
 	int manchesterIterator = 0;
 	int asciiIndex = 0;
 
-	while (manchesterIterator < manchesterIndex)
+	while (manchesterIterator < *processBufferIndex)
 	{
-		asciiArray[asciiIndex] = (manchesterArray[manchesterIterator+0] << 7 |
-								  manchesterArray[manchesterIterator+1] << 6 |
-								  manchesterArray[manchesterIterator+2] << 5 |
-								  manchesterArray[manchesterIterator+3] << 4 |
-								  manchesterArray[manchesterIterator+4] << 3 |
-								  manchesterArray[manchesterIterator+5] << 2 |
-								  manchesterArray[manchesterIterator+6] << 1 |
-								  manchesterArray[manchesterIterator+7]);
+		asciiArray[asciiIndex] = (processBuffer[manchesterIterator+0] << 7 |
+								  processBuffer[manchesterIterator+1] << 6 |
+								  processBuffer[manchesterIterator+2] << 5 |
+								  processBuffer[manchesterIterator+3] << 4 |
+								  processBuffer[manchesterIterator+4] << 3 |
+								  processBuffer[manchesterIterator+5] << 2 |
+								  processBuffer[manchesterIterator+6] << 1 |
+								  processBuffer[manchesterIterator+7]);
 		manchesterIterator += 8;
 		asciiIndex++;
 	}
@@ -397,7 +423,15 @@ static bool receiverCheckCRCtrailer()
 
 static void resetReceivedMessage()
 {
-	manchesterIndex=0;
+	if (processBuffer == &manchesterBuffer1[0])
+	{
+		manchesterBuffer1Index = 0;
+	}
+	else
+	{
+		manchesterBuffer2Index = 0;
+	}
+
 	messageReceived = false;
 }
 
