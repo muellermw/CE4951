@@ -217,7 +217,11 @@ void printAnyReceivedMessage()
 {
 	if (messageReceived == true)
 	{
+		// reset the message received flag
+		messageReceived = false;
 		convertReceivedMessageToASCII();
+		// we do not need the received packet index anymore - reset it now
+		resetReceivedMessage();
 		receiverErrorType errorCheck;
 		errorCheck = receiverParsePacket();
 
@@ -258,8 +262,6 @@ void printAnyReceivedMessage()
 			receivedString[(uint8_t)receivedPacket.Length] = '\0';
 			printf("MESSAGE RECEIVED:\n%s\n", receivedString);
 		}
-
-		resetReceivedMessage();
 	}
 }
 
@@ -431,8 +433,6 @@ static void resetReceivedMessage()
 	{
 		manchesterBuffer2Index = 0;
 	}
-
-	messageReceived = false;
 }
 
 static void disableMonitorClock(){
