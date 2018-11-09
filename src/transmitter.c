@@ -96,7 +96,8 @@ void TIM4_IRQHandler(void){
 			indexOfManchester++;
 		}
 
-		if (monitorState == COLLISION_STATE)
+		// check if a collision occurred from the channel monitor and an IDLE state has yet to be encountered
+		if (monitorCheckForCollision())
 		{
 			readyToTransmit = false;
 			indexOfManchester = 0;

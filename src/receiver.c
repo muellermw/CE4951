@@ -76,7 +76,6 @@ void receiver_Init() {
 	HAL_NVIC_SetPriority(TIM3_IRQn,1,1);
 	HAL_NVIC_EnableIRQ(TIM3_IRQn);
 	disableMonitorClock();
-	resetReceivedMessage();
 
 	receiveBuffer = &manchesterBuffer1[0];
 	receiveBufferIndex = &manchesterBuffer1Index;
@@ -114,7 +113,7 @@ void TIM3_IRQHandler(void){
 		}
 		else
 		{
-			resetReceivedMessage();
+			*receiveBufferIndex = 0;
 		}
 	}
 
@@ -133,7 +132,7 @@ void EXTI3_IRQHandler(void)
 	if (ticks == 0)
 	{
 		receiveBuffer[*receiveBufferIndex] = 0;
-		receiveBufferIndex[0] = receiveBufferIndex[0]+1;
+		(*receiveBufferIndex)++;
 		enableMonitorClock();
 	}
 	// (500us + 1.32% = 506.6us) (16 ticks/us * 506.6us = 8106 ticks)
@@ -168,7 +167,7 @@ static void risingEdgeTrigger(){
 	if (*receiveBufferIndex < (TRANSMISSION_SIZE_MAX*8))
 	{
 		receiveBuffer[*receiveBufferIndex]=0b1;
-		receiveBufferIndex[0]++;
+		(*receiveBufferIndex)++;
 	}
 }
 
@@ -180,7 +179,7 @@ static void fallingEdgeTrigger(){
 	if (*receiveBufferIndex < (TRANSMISSION_SIZE_MAX*8))
 	{
 		receiveBuffer[*receiveBufferIndex]=0b0;
-		receiveBufferIndex[0]++;
+		(*receiveBufferIndex)++;
 	}
 }
 
@@ -425,14 +424,7 @@ static bool receiverCheckCRCtrailer()
 
 static void resetReceivedMessage()
 {
-	if (processBuffer == &manchesterBuffer1[0])
-	{
-		manchesterBuffer1Index = 0;
-	}
-	else
-	{
-		manchesterBuffer2Index = 0;
-	}
+	*processBufferIndex = 0;
 }
 
 static void disableMonitorClock(){

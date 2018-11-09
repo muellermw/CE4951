@@ -22,5 +22,6 @@ typedef enum{
 
 void channel_Monitor_Init();
 state_enum getCurrentMonitorState();
+bool monitorCheckForCollision();
 
 #endif /* CHANNEL_H_ */

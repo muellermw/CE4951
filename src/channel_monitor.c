@@ -20,6 +20,7 @@ static TIM_HandleTypeDef hTim2 =
 
 static state_enum monitor_state;
 static edge_enum edge;
+static bool thereWasACollision = false;
 
 /**
  * initialize timers, set current state
@@ -75,9 +76,11 @@ void TIM2_IRQHandler(void){
 	if(edge==RISING_EDGE) {
 		monitor_state=IDLE_STATE;
 		led_on(0);
+		thereWasACollision = false;
 	} else {
 		monitor_state=COLLISION_STATE;
 		led_on(9);
+		thereWasACollision = true;
 	}
 
 	HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
@@ -143,4 +146,9 @@ static void enableMonitorClock(){
  */
 state_enum getCurrentMonitorState(){
 	return monitor_state;
+}
+
+bool monitorCheckForCollision()
+{
+	return thereWasACollision;
 }
